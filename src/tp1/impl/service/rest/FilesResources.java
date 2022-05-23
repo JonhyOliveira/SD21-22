@@ -9,9 +9,9 @@ import tp1.impl.service.common.JavaFiles;
 
 @Singleton
 public class FilesResources extends RestResource implements RestFiles {
-	private static Logger Log = Logger.getLogger(FilesResources.class.getName());
+	protected static Logger Log = Logger.getLogger(FilesResources.class.getName());
 
-	final Files impl;
+	protected Files impl;
 
 	public FilesResources() {
 		impl = new JavaFiles();

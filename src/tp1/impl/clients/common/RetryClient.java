@@ -7,6 +7,8 @@ import tp1.api.service.java.Result;
 import tp1.api.service.java.Result.ErrorCode;
 import util.Sleep;
 
+import javax.net.ssl.HttpsURLConnection;
+
 /**
  * Shared client behavior.
  * 
@@ -23,6 +25,10 @@ public abstract class RetryClient {
 
 	protected static final int RETRY_SLEEP = 100;
 	protected static final int MAX_RETRIES = 3;
+
+	{
+		HttpsURLConnection.setDefaultHostnameVerifier(new InsecureHostnameVerifier());
+	}
 
 	protected <T> Result<T> reTry(Supplier<Result<T>> func) {
 		return this.reTry(func, MAX_RETRIES);
