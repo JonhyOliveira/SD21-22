@@ -34,5 +34,5 @@ public abstract class AbstractRestServer extends AbstractServer {
 		Discovery.getInstance().announce(service, serverURI);
 	}
 	
-	abstract void registerResources( ResourceConfig config );
+	public abstract void registerResources(ResourceConfig config);
 }

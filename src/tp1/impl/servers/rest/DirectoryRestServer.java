@@ -21,7 +21,7 @@ public class DirectoryRestServer extends AbstractRestServer {
 	}
 	
 	@Override
-	void registerResources(ResourceConfig config) {
+	public void registerResources(ResourceConfig config) {
 		config.register( DirectoryResources.class ); 
 		config.register( GenericExceptionMapper.class );		
 //		config.register( CustomLoggingFilter.class);

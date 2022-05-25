@@ -7,9 +7,8 @@ import tp1.api.service.java.Files;
 import tp1.api.service.java.Result;
 import tp1.impl.servers.common.dropbox.commands.*;
 import tp1.impl.servers.common.dropbox.util.DropboxContext;
-import tp1.impl.service.rest.DropboxServer;
+import tp1.impl.servers.rest.DropboxServer;
 
-import java.net.URL;
 import java.util.*;
 import java.util.logging.Logger;
 
@@ -38,23 +37,23 @@ public class DropboxImpl implements Files {
 
         try {
             if (DropboxServer.PRESERVE) {
-                assert CreateDropboxDirectory.execute(context, BASE_DIR, true).isOK(); // try to create
+                CreateDropboxDirectory.execute(context, BASE_DIR, true); // try to create
 
                 var res = ListDropboxDirectory.execute(context, BASE_DIR);
 
-                Collection<String> f;
+                Collection<String> fetchedFileNames;
 
                 if (res.isOK())
-                    f = res.value();
+                    fetchedFileNames = res.value();
                 else if (res.errorValue() instanceof ListDropboxDirectory.Error) {
-                        f = ((ListDropboxDirectory.Error) res.errorValue()).partial();
+                        fetchedFileNames = ((ListDropboxDirectory.Error) res.errorValue()).partial();
                 }
                 else {
-                    f = Collections.emptyList();
+                    fetchedFileNames = Collections.emptyList();
                 }
 
 
-                f.forEach(s -> files.put(s, s));
+                fetchedFileNames.forEach(fileName -> files.put(fileName, fileName));
 
 
             } else {
@@ -77,7 +76,7 @@ public class DropboxImpl implements Files {
             return Result.error(Result.ErrorCode.NOT_FOUND, "not in cache");
 
         try {
-            return DownloadDropboxFile.execute(context, BASE_DIR + "/" + files.get(fileId));
+            return DownloadDropboxFile.execute(context, files.get(fileId));
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -89,7 +88,7 @@ public class DropboxImpl implements Files {
     public Result<Void> deleteFile(String fileId, String token) {
 
         try {
-            var res = DeleteDropboxFileOrDirectory.execute(context, BASE_DIR + "/" + files.get(fileId));
+            var res = DeleteDropboxFileOrDirectory.execute(context, files.get(fileId));
 
             if (res.isOK())
                 files.remove(fileId);
@@ -130,8 +129,13 @@ public class DropboxImpl implements Files {
 
     @Override
     public Result<Void> deleteUserFiles(String userId, String token) {
-
-        return null;
+        if (files.keySet()
+                .stream()
+                .filter(fileID -> fileID.startsWith(userId + DELIMITER))
+                .allMatch(fileID -> deleteFile(fileID, token).isOK()))
+            return Result.ok();
+        else
+            return Result.error(Result.ErrorCode.FORBIDDEN);
     }
 
 }

@@ -7,6 +7,7 @@ import tp1.api.service.java.Result;
 import tp1.impl.servers.common.dropbox.util.DropboxContext;
 import tp1.impl.servers.common.dropbox.util.Endpoints;
 
+import java.util.HashMap;
 import java.util.logging.Logger;
 
 public class UpdateDropboxFile {
@@ -48,6 +49,14 @@ public class UpdateDropboxFile {
         }
     }
 
-    private record ID(String id) {}
+    private class ID extends HashMap<String, Object> {
+
+        public static final String ID = "id";
+
+        public String id() {
+            return get(ID).toString();
+        }
+
+    }
 
 }

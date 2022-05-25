@@ -22,7 +22,7 @@ public class UsersRestServer extends AbstractRestServer {
 	
 	
 	@Override
-	void registerResources(ResourceConfig config) {
+    public void registerResources(ResourceConfig config) {
 		config.register( UsersResources.class ); 
 		config.register( GenericExceptionMapper.class);
 //		config.register( CustomLoggingFilter.class);

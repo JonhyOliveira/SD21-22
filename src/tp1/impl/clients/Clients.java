@@ -12,6 +12,7 @@ import tp1.impl.clients.rest.RestUsersClient;
 import tp1.impl.clients.soap.SoapDirectoryClient;
 import tp1.impl.clients.soap.SoapFilesClient;
 import tp1.impl.clients.soap.SoapUsersClient;
+import tp1.impl.servers.rest.DropboxServer;
 
 public class Clients {
 
@@ -23,6 +24,12 @@ public class Clients {
 
 	public static final ClientFactory<Files> FilesClients = new ClientFactory<>(
 			Files.SERVICE_NAME, 
+			(u) -> new RetryFilesClient(new RestFilesClient(u)),
+			(u) -> new RetryFilesClient(new SoapFilesClient(u))
+	);
+
+	public static final ClientFactory<Files> DropboxProxyClients = new ClientFactory<>(
+			DropboxServer.SERVICE_NAME,
 			(u) -> new RetryFilesClient(new RestFilesClient(u)),
 			(u) -> new RetryFilesClient(new SoapFilesClient(u))
 	);

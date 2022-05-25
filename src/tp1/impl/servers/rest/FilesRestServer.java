@@ -21,7 +21,7 @@ public class FilesRestServer extends AbstractRestServer {
 	}
 	
 	@Override
-	void registerResources(ResourceConfig config) {
+    public void registerResources(ResourceConfig config) {
 		config.register( FilesResources.class ); 
 		config.register( GenericExceptionMapper.class );
 //		config.register( CustomLoggingFilter.class);

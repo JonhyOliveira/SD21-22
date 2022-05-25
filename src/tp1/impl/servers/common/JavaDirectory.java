@@ -258,8 +258,8 @@ public class JavaDirectory implements Directory {
 				.filter( u -> ! result.contains(u))
 				.map(u -> getFileCounts(u, false))
 				.sorted( FileCounts::ascending )
-				.map(FileCounts::uri)
 				.limit(MAX_SIZE)
+				.map(FileCounts::uri)
 				.forEach( result::add );
 		
 		while( result.size() < MAX_SIZE )
