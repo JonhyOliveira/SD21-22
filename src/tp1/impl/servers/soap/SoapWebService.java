@@ -1,4 +1,4 @@
-package tp1.impl.service.soap;
+package tp1.impl.servers.soap;
 
 import java.util.function.Function;
 

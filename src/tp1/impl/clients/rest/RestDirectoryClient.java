@@ -7,7 +7,6 @@ import jakarta.ws.rs.client.Entity;
 import jakarta.ws.rs.core.GenericType;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
-import jakarta.ws.rs.core.Response.Status;
 import tp1.api.FileInfo;
 import tp1.api.service.java.Directory;
 import tp1.api.service.java.Result;
@@ -24,14 +23,13 @@ public class RestDirectoryClient extends RestClient implements Directory {
 
 	@Override
 	public Result<FileInfo> writeFile(String filename, byte[] data, String userId, String password) {
-		System.err.println(target);
 		Response r = target.path(userId)
 				.path(filename)
 				.queryParam(RestDirectory.PASSWORD, password)
 				.request()
 				.accept(MediaType.APPLICATION_JSON)
 				.post(Entity.entity( data, MediaType.APPLICATION_OCTET_STREAM));
-		return super.responseContents(r, Status.OK, new GenericType<FileInfo>() {});
+		return super.toJavaResult(r, new GenericType<FileInfo>() {});
 	}
 
 	@Override
@@ -41,7 +39,7 @@ public class RestDirectoryClient extends RestClient implements Directory {
 				.queryParam(RestDirectory.PASSWORD, password)
 				.request()
 				.delete();
-		return super.verifyResponse(r, Status.NO_CONTENT);
+		return super.toJavaResult(r);
 	}
 
 	@Override
@@ -53,7 +51,7 @@ public class RestDirectoryClient extends RestClient implements Directory {
 				.queryParam(RestDirectory.PASSWORD, password)
 				.request()
 				.post(Entity.json(null));		
-		return super.verifyResponse(r, Status.NO_CONTENT);
+		return super.toJavaResult(r);
 	}
 
 	@Override
@@ -65,7 +63,7 @@ public class RestDirectoryClient extends RestClient implements Directory {
 				.queryParam(RestDirectory.PASSWORD, password)
 				.request()
 				.delete();
-		return super.verifyResponse(r, Status.NO_CONTENT);
+		return super.toJavaResult(r);
 	}
 
 	@Override
@@ -77,7 +75,7 @@ public class RestDirectoryClient extends RestClient implements Directory {
 				.request()
 				.accept(MediaType.APPLICATION_OCTET_STREAM)
 				.get();
-		return super.responseContents(r, Status.OK, new GenericType<byte[]>() {});
+		return super.toJavaResult(r, new GenericType<byte[]>() {});
 	}
 
 	@Override
@@ -87,7 +85,7 @@ public class RestDirectoryClient extends RestClient implements Directory {
 				.request()
 				.accept(MediaType.APPLICATION_JSON)
 				.get();
-		return super.responseContents(r, Status.OK, new GenericType<List<FileInfo>>() {});
+		return super.toJavaResult(r, new GenericType<List<FileInfo>>() {});
 	}
 
 	@Override
@@ -97,6 +95,6 @@ public class RestDirectoryClient extends RestClient implements Directory {
 				.queryParam(RestDirectory.TOKEN, token)
 				.request()
 				.delete();
-		return super.verifyResponse(r, Status.NO_CONTENT);
+		return super.toJavaResult(r);
 	}
 }

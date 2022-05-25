@@ -14,7 +14,6 @@ import jakarta.ws.rs.client.WebTarget;
 import jakarta.ws.rs.core.GenericType;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.Response.Status;
-import jakarta.ws.rs.core.Response.StatusType;
 import tp1.api.service.java.Result;
 import tp1.api.service.java.Result.ErrorCode;
 import tp1.impl.clients.common.RetryClient;
@@ -26,7 +25,7 @@ import tp1.impl.clients.common.RetryClient;
  * Holds client and target information.
  * 
  * Translates http responses to Result<T> for interoperability.
- *  
+ * 
  * @author smduarte
  *
  */
@@ -45,46 +44,37 @@ abstract class RestClient extends RetryClient {
 		this.config.property(ClientProperties.FOLLOW_REDIRECTS, true);
 
 //		config.register(new LoggingFeature(Logger.getLogger(LoggingFeature.DEFAULT_LOGGER_NAME), Level.INFO, LoggingFeature.Verbosity.PAYLOAD_ANY, 10000));		  
-		
+
 		this.client = ClientBuilder.newClient(config);
 		this.target = this.client.target(uri).path(path);
 	}
 
-	// Get the actual response, when the status matches what was expected, otherwise
-	// return the error code.
-	protected <T> Result<T> verifyResponse(Response r, Status expected) {
+	protected Result<Void> toJavaResult(Response r) {
 		try {
-			StatusType status = r.getStatusInfo();
-			if (status.equals(expected))
+			var status = r.getStatusInfo().toEnum();
+			if (status == Status.NO_CONTENT)
 				return ok();
 			else
-				return error(getErrorCodeFrom(status.getStatusCode()));
+				return error(getErrorCodeFrom(status));
 		} finally {
 			r.close();
 		}
 	}
 
-	// Get the actual response, when the status matches what was expected, otherwise
-	// return the error code.
-	protected <T> Result<T> responseContents(Response r, Status expected, GenericType<T> gtype) {
+	protected <T> Result<T> toJavaResult(Response r, GenericType<T> gtype) {
 		try {
-			StatusType status = r.getStatusInfo();
-			if (status.equals(expected))
+			var status = r.getStatusInfo().toEnum();
+			if (status == Status.OK)
 				return ok(r.readEntity(gtype));
 			else
-				return error(getErrorCodeFrom(status.getStatusCode()));
+				return error(getErrorCodeFrom(status));
 		} finally {
 			r.close();
 		}
 	}
 
-	@Override
-	public String toString() {
-		return uri.toString();
-	}
-
-	static private ErrorCode getErrorCodeFrom(int status) {
-		return switch (status) {
+	static private ErrorCode getErrorCodeFrom(Status status) {
+		return switch (status.getStatusCode()) {
 		case 200, 209 -> ErrorCode.OK;
 		case 409 -> ErrorCode.CONFLICT;
 		case 403 -> ErrorCode.FORBIDDEN;
@@ -94,5 +84,10 @@ abstract class RestClient extends RetryClient {
 		case 501 -> ErrorCode.NOT_IMPLEMENTED;
 		default -> ErrorCode.INTERNAL_ERROR;
 		};
+	}
+
+	@Override
+	public String toString() {
+		return uri.toString();
 	}
 }

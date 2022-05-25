@@ -1,4 +1,4 @@
-package tp1.impl.service.rest;
+package tp1.impl.servers.rest;
 
 import java.net.URI;
 

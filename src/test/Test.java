@@ -6,9 +6,9 @@ import tp1.api.User;
 import tp1.api.service.java.Directory;
 import tp1.api.service.java.Users;
 import tp1.impl.clients.Clients;
-import tp1.impl.service.rest.DirectoryRestServer;
-import tp1.impl.service.rest.FilesRestServer;
-import tp1.impl.service.rest.UsersRestServer;
+import tp1.impl.servers.rest.DirectoryRestServer;
+import tp1.impl.servers.rest.FilesRestServer;
+import tp1.impl.servers.rest.UsersRestServer;
 import util.Debug;
 
 public class Test {

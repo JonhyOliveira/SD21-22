@@ -1,4 +1,4 @@
-package tp1.impl.service.soap;
+package tp1.impl.servers.soap;
 
 import java.util.List;
 import java.util.logging.Logger;
@@ -8,7 +8,7 @@ import tp1.api.User;
 import tp1.api.service.java.Users;
 import tp1.api.service.soap.SoapUsers;
 import tp1.api.service.soap.UsersException;
-import tp1.impl.service.common.JavaUsers;
+import tp1.impl.servers.common.JavaUsers;
 
 @WebService(serviceName=SoapUsers.NAME, targetNamespace=SoapUsers.NAMESPACE, endpointInterface=SoapUsers.INTERFACE)
 public class SoapUsersWebService extends SoapWebService implements SoapUsers {

@@ -1,4 +1,4 @@
-package tp1.impl.service.rest.util;
+package tp1.impl.servers.rest.util;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -26,7 +26,7 @@ public class CustomLoggingFilter implements ContainerRequestFilter, ContainerRes
 		Log.info("HTTP REQUEST : " + sb.toString());
 	}
 
-	private String getEntityBody(ContainerRequestContext requestContext) {
+	String getEntityBody(ContainerRequestContext requestContext) {
 		ByteArrayOutputStream out = new ByteArrayOutputStream();
 		InputStream in = requestContext.getEntityStream();
 

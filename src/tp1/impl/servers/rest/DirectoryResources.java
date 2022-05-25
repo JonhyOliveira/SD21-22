@@ -1,4 +1,4 @@
-package tp1.impl.service.rest;
+package tp1.impl.servers.rest;
 
 import static tp1.impl.clients.Clients.FilesClients;
 
@@ -10,7 +10,7 @@ import tp1.api.FileInfo;
 import tp1.api.service.java.Directory;
 import tp1.api.service.java.Result.ErrorCode;
 import tp1.api.service.rest.RestDirectory;
-import tp1.impl.service.common.JavaDirectory;
+import tp1.impl.servers.common.JavaDirectory;
 
 @Singleton
 public class DirectoryResources extends RestResource implements RestDirectory {

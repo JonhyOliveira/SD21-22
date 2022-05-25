@@ -1,4 +1,4 @@
-package tp1.impl.service.rest.util;
+package tp1.impl.servers.rest.util;
 
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.MediaType;

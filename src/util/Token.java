@@ -9,10 +9,10 @@ public class Token {
 	}
 	
 	public static String get() {
-		return token;
+		return token == null ? "" : token ;
 	}
 	
 	public boolean matches(String t) {
-		return token.equals( t );
+		return token != null && token.equals( t );
 	}
 }

@@ -9,7 +9,6 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 
-import tp1.api.service.java.Files;
 import tp1.api.service.java.Result.ErrorCode;
 import tp1.impl.discovery.Discovery;
 
@@ -65,6 +64,6 @@ public class ClientFactory<T> {
 	}
 	
 	public List<URI> all()  {
-		return Arrays.asList(Discovery.getInstance().findUrisOf(Files.SERVICE_NAME, 1));
+		return Arrays.asList(Discovery.getInstance().findUrisOf(serviceName, 1));
 	}	
 }

@@ -1,4 +1,4 @@
-package tp1.impl.service.common;
+package tp1.impl.servers.common;
 
 import static tp1.api.service.java.Result.error;
 import static tp1.api.service.java.Result.ok;
@@ -10,6 +10,7 @@ import static tp1.impl.clients.Clients.FilesClients;
 import static tp1.impl.clients.Clients.UsersClients;
 
 import java.net.URI;
+import java.time.Duration;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.List;
@@ -24,6 +25,10 @@ import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
+
 import tp1.api.FileInfo;
 import tp1.api.User;
 import tp1.api.service.java.Directory;
@@ -33,11 +38,23 @@ import util.Token;
 
 public class JavaDirectory implements Directory {
 
-	private static final long USER_CACHE_CAPACITY = 32;
-	private static final long USER_CACHE_EXPIRATION = 500;
+	static final long USER_CACHE_EXPIRATION = 3000;
 
-	private final static Logger Log = Logger.getLogger(JavaDirectory.class.getName());
-	private final ExecutorService executor = Executors.newCachedThreadPool();
+	final LoadingCache<UserInfo, Result<User>> users = CacheBuilder.newBuilder()
+			.expireAfterWrite( Duration.ofMillis(USER_CACHE_EXPIRATION))
+			.build(new CacheLoader<>() {
+				@Override
+				public Result<User> load(UserInfo info) throws Exception {
+					var res = UsersClients.get().getUser( info.userId(), info.password());
+					if( res.error() == ErrorCode.TIMEOUT)
+						return error(BAD_REQUEST);
+					else
+						return res;
+				}
+			});
+	
+	final static Logger Log = Logger.getLogger(JavaDirectory.class.getName());
+	final ExecutorService executor = Executors.newCachedThreadPool();
 
 	final Map<String, ExtendedFileInfo> files = new ConcurrentHashMap<>();
 	final Map<String, UserFiles> userFiles = new ConcurrentHashMap<>();
@@ -201,15 +218,17 @@ public class JavaDirectory implements Directory {
 	}
 
 	private Result<User> getUser(String userId, String password) {
-		var res = UsersClients.get().getUser( userId, password );
-		if( res.error() == ErrorCode.TIMEOUT)
-			return error(BAD_REQUEST);
-		else
-			return res;
+		try {
+			return users.get( new UserInfo( userId, password));
+		} catch( Exception x ) {
+			x.printStackTrace();
+			return error( ErrorCode.INTERNAL_ERROR);
+		}
 	}
-
+	
 	@Override
 	public Result<Void> deleteUserFiles(String userId, String password, String token) {
+		users.invalidate( new UserInfo(userId, password));
 		
 		var fileIds = userFiles.remove(userId);
 		if (fileIds != null)
@@ -277,4 +296,7 @@ public class JavaDirectory implements Directory {
 			return Long.compare( a.numFiles().get(), b.numFiles().get());
 		}
 	}	
+	
+	static record UserInfo(String userId, String password) {		
+	}
 }

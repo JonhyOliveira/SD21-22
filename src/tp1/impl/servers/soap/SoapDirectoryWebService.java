@@ -1,4 +1,4 @@
-package tp1.impl.service.soap;
+package tp1.impl.servers.soap;
 
 import static tp1.impl.clients.Clients.FilesClients;
 
@@ -11,7 +11,7 @@ import tp1.api.service.java.Directory;
 import tp1.api.service.java.Result.ErrorCode;
 import tp1.api.service.soap.DirectoryException;
 import tp1.api.service.soap.SoapDirectory;
-import tp1.impl.service.common.JavaDirectory;
+import tp1.impl.servers.common.JavaDirectory;
 
 @WebService(serviceName = SoapDirectory.NAME, targetNamespace = SoapDirectory.NAMESPACE, endpointInterface = SoapDirectory.INTERFACE)
 public class SoapDirectoryWebService extends SoapWebService implements SoapDirectory {

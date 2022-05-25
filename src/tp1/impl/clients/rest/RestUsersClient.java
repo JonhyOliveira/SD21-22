@@ -7,7 +7,6 @@ import jakarta.ws.rs.client.Entity;
 import jakarta.ws.rs.core.GenericType;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
-import jakarta.ws.rs.core.Response.Status;
 import tp1.api.User;
 import tp1.api.service.java.Result;
 import tp1.api.service.java.Users;
@@ -25,7 +24,8 @@ public class RestUsersClient extends RestClient implements Users {
 				.request()
 				.accept(  MediaType.APPLICATION_JSON)
 				.post( Entity.entity(user, MediaType.APPLICATION_JSON));
-		return super.responseContents(r, Status.OK, new GenericType<String>() {});
+		
+		return super.toJavaResult(r, new GenericType<String>() {});
 	}
 
 	@Override
@@ -36,18 +36,18 @@ public class RestUsersClient extends RestClient implements Users {
 				.accept(  MediaType.APPLICATION_JSON)
 				.put(Entity.entity(user, MediaType.APPLICATION_JSON));
 		
-		return super.responseContents(r, Status.OK, new GenericType<User>() {});
+		return super.toJavaResult(r, new GenericType<User>() {});
 	}
 
 	@Override
 	public Result<User> getUser(String userId, String password) {
-		System.err.println( target );
 		Response r = target.path(userId)
 				.queryParam(RestUsers.PASSWORD, password)
 				.request()
 				.accept(MediaType.APPLICATION_JSON)
 				.get();
-		return super.responseContents(r, Status.OK, new GenericType<User>() {});
+		
+		return super.toJavaResult(r, new GenericType<User>() {});
 	}
 
 	@Override
@@ -58,7 +58,7 @@ public class RestUsersClient extends RestClient implements Users {
 				.accept(MediaType.APPLICATION_JSON)
 				.delete();
 		
-		return super.responseContents(r, Status.OK, new GenericType<User>() {});
+		return super.toJavaResult(r, new GenericType<User>() {});
 	}
 
 	@Override
@@ -69,6 +69,6 @@ public class RestUsersClient extends RestClient implements Users {
 				.accept(MediaType.APPLICATION_JSON)
 				.get();
 		
-		return super.responseContents(r, Status.OK, new GenericType<List<User>>() {});
+		return super.toJavaResult(r, new GenericType<List<User>>() {});
 	}
 }

@@ -4,6 +4,7 @@ import static tp1.api.service.java.Result.error;
 import static tp1.api.service.java.Result.ok;
 
 import java.net.URI;
+import java.util.function.Supplier;
 
 import com.sun.xml.ws.client.BindingProviderProperties;
 
@@ -24,14 +25,58 @@ import tp1.impl.clients.common.RetryClient;
 * @author smduarte
 *
 */
-abstract class SoapClient extends RetryClient {
+abstract class SoapClient<T> extends RetryClient {
 	
 	protected static final String WSDL = "?wsdl";
 
 	protected final URI uri;
-
-	public SoapClient(URI uri) {
+	protected final T impl;
+	
+	public SoapClient(URI uri, Supplier<T> func) {
 		this.uri = uri;
+		this.impl = func.get();
+		this.setTimeouts((BindingProvider) impl);
+	}
+
+	private void setTimeouts(BindingProvider port ) {
+		port.getRequestContext().put(BindingProviderProperties.CONNECT_TIMEOUT, CONNECT_TIMEOUT);
+		port.getRequestContext().put(BindingProviderProperties.REQUEST_TIMEOUT, READ_TIMEOUT);		
+	}
+
+	
+	
+
+	protected <R> Result<R> toJavaResult(ResultSupplier<R> supplier) {
+		try {
+			return ok( supplier.get());	
+		} 
+		catch (Exception e) {			
+			if( e instanceof WebServiceException ) {
+				throw new RuntimeException( e.getMessage() );
+			}			
+			return error(getErrorCodeFrom(e));
+		}
+	}
+
+	protected <R> Result<R> toJavaResult( VoidSupplier r) {
+		try {
+			r.run();
+			return ok();
+		}
+		catch (Exception e) {
+			if( e instanceof WebServiceException ) {
+				throw new RuntimeException( e.getMessage() );				
+			}
+			return error(getErrorCodeFrom(e));
+		}
+	}
+
+	static private ErrorCode getErrorCodeFrom(Exception e) {
+		try {
+			return ErrorCode.valueOf( e.getMessage() );			
+		} catch( IllegalArgumentException x) {			
+			return ErrorCode.INTERNAL_ERROR ;			
+		}
 	}
 
 	static interface ResultSupplier<T> {
@@ -41,54 +86,9 @@ abstract class SoapClient extends RetryClient {
 	static interface VoidSupplier {
 		void run() throws Exception;
 	}
-
-	protected <T> Result<T> tryCatchResult(ResultSupplier<T> supplier) {
-		try {
-			return ok( supplier.get());	
-		} 
-		catch (Exception e) {			
-			if( e instanceof WebServiceException ) {
-//				e.printStackTrace();
-				throw new RuntimeException( e.getMessage() );
-			}			
-			return error(getErrorCodeFrom(e));
-		}
-	}
-
-	protected <T> Result<T> tryCatchVoid( VoidSupplier r) {
-		try {
-			r.run();
-			return ok();
-		}
-		catch (Exception e) {
-			if( e instanceof WebServiceException ) {
-//				e.printStackTrace();
-				throw new RuntimeException( e.getMessage() );				
-			}
-			return error(getErrorCodeFrom(e));
-		}
-	}
-
+	
 	@Override
 	public String toString() {
 		return uri.toString();
-	}
-
-	static private ErrorCode getErrorCodeFrom(Exception e) {
-		return switch (e.getMessage()) {
-			case "OK" -> ErrorCode.OK;
-			case "CONFLICT" -> ErrorCode.CONFLICT;
-			case "NOT_FOUND" -> ErrorCode.NOT_FOUND;
-			case "FORBIDDEN" -> ErrorCode.FORBIDDEN;
-			case "INTERNAL_ERROR" -> ErrorCode.INTERNAL_ERROR;
-			case "NOT_IMPLEMENTED" -> ErrorCode.NOT_IMPLEMENTED;
-			default -> ErrorCode.INTERNAL_ERROR;
-		};
-	}
-
-	void setTimeouts(BindingProvider port ) {
-		port.getRequestContext().put(BindingProviderProperties.CONNECT_TIMEOUT, CONNECT_TIMEOUT);
-		port.getRequestContext().put(BindingProviderProperties.REQUEST_TIMEOUT, READ_TIMEOUT);		
-	}
-
+	}	
 }

@@ -29,13 +29,13 @@ public class Discovery {
 	private static Logger Log = Logger.getLogger(Discovery.class.getName());
 	private static final String DELIMITER = "\t";
 
-	static final InetSocketAddress DISCOVERY_ADDR = new InetSocketAddress("226.226.226.226", 2262);
 	static final int DISCOVERY_PERIOD = 1000;
 	static final int DISCOVERY_TIMEOUT = 10000;
+	static final InetSocketAddress DISCOVERY_ADDR = new InetSocketAddress("226.226.226.226", 2262);
 
-	private static Discovery instance;
-	
 	final Map<String, Set<URI>> discoveries = new ConcurrentHashMap<>();
+	
+	static Discovery instance;
 	
 	synchronized public static Discovery getInstance() {
 		if( instance == null ) {
@@ -130,7 +130,6 @@ public class Discovery {
 			try {
 				ms.joinGroup(DISCOVERY_ADDR, xface);
 			} catch (Exception x) {
-				System.err.println( xface);
 				x.printStackTrace();
 			}
 		}

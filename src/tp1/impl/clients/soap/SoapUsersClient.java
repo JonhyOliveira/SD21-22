@@ -5,7 +5,6 @@ import java.util.List;
 
 import javax.xml.namespace.QName;
 
-import jakarta.xml.ws.BindingProvider;
 import jakarta.xml.ws.Service;
 import tp1.api.User;
 import tp1.api.service.java.Result;
@@ -13,47 +12,38 @@ import tp1.api.service.java.Users;
 import tp1.api.service.soap.SoapUsers;
 import util.Url;
 
-public class SoapUsersClient extends SoapClient implements Users {
-
-	private SoapUsers impl;
+public class SoapUsersClient extends SoapClient<SoapUsers> implements Users {
 	
-	public SoapUsersClient( URI uri ) {
-		super( uri );
+	public SoapUsersClient( URI serverUri ) {
+		super( serverUri, () -> {
+			QName QNAME = new QName(SoapUsers.NAMESPACE, SoapUsers.NAME);			
+			Service service = Service.create(Url.from(serverUri + WSDL), QNAME);
+			return service.getPort(tp1.api.service.soap.SoapUsers.class);
+		} );
 	}
 	
-	synchronized private SoapUsers impl() {
-		if (impl == null) {
-			QName QNAME = new QName(SoapUsers.NAMESPACE, SoapUsers.NAME);
-			
-			Service service = Service.create(Url.from(super.uri + WSDL), QNAME);
-			this.impl = service.getPort(tp1.api.service.soap.SoapUsers.class);
-			super.setTimeouts( (BindingProvider)impl);
-		}
-		return impl;
-	}
-
 	@Override
 	public Result<String> createUser(User user) {
-		return super.tryCatchResult(() -> impl().createUser(user));
+		return super.toJavaResult(() -> impl.createUser(user));
 	}
 
 	@Override
 	public Result<User> getUser(String userId, String password) {
-		return super.tryCatchResult(() -> impl().getUser(userId, password));
+		return super.toJavaResult(() -> impl.getUser(userId, password));
 	}
 
 	@Override
 	public Result<User> updateUser(String userId, String password, User user) {
-		return super.tryCatchResult(() -> impl().updateUser(userId, password, user));
+		return super.toJavaResult(() -> impl.updateUser(userId, password, user));
 	}
 
 	@Override
 	public Result<User> deleteUser(String userId, String password) {
-		return super.tryCatchResult(() -> impl().deleteUser(userId, password));
+		return super.toJavaResult(() -> impl.deleteUser(userId, password));
 	}
 
 	@Override
 	public Result<List<User>> searchUsers(String pattern) {
-		return super.tryCatchResult(() -> impl().searchUsers(pattern));
+		return super.toJavaResult(() -> impl.searchUsers(pattern));
 	}
 }

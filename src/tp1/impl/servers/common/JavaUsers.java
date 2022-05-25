@@ -1,4 +1,4 @@
-package tp1.impl.service.common;
+package tp1.impl.servers.common;
 
 import static tp1.api.service.java.Result.error;
 import static tp1.api.service.java.Result.ok;

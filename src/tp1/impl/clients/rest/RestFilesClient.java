@@ -6,7 +6,6 @@ import jakarta.ws.rs.client.Entity;
 import jakarta.ws.rs.core.GenericType;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
-import jakarta.ws.rs.core.Response.Status;
 import tp1.api.service.java.Files;
 import tp1.api.service.java.Result;
 import tp1.api.service.rest.RestFiles;
@@ -26,7 +25,7 @@ public class RestFilesClient extends RestClient implements Files {
 				.request()
 				.accept( MediaType.APPLICATION_OCTET_STREAM)
 				.get();
-		return super.responseContents(r, Status.OK, new GenericType<byte[]>() {});
+		return super.toJavaResult(r, new GenericType<byte[]>() {});
 	}
 
 	@Override
@@ -36,7 +35,7 @@ public class RestFilesClient extends RestClient implements Files {
 				.request()
 				.delete();
 		
-		return super.verifyResponse(r, Status.NO_CONTENT);
+		return super.toJavaResult(r);
 	}
 
 	@Override
@@ -46,7 +45,7 @@ public class RestFilesClient extends RestClient implements Files {
 				.request()
 				.post(Entity.entity(data, MediaType.APPLICATION_OCTET_STREAM));
 		
-		return super.verifyResponse(r, Status.NO_CONTENT);
+		return super.toJavaResult(r);
 	}
 
 	@Override
@@ -57,6 +56,6 @@ public class RestFilesClient extends RestClient implements Files {
 				.request()
 				.delete();
 		
-		return super.verifyResponse(r, Status.NO_CONTENT);
+		return super.toJavaResult(r);
 	}	
 }

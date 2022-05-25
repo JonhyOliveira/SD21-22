@@ -1,11 +1,11 @@
-package tp1.impl.service.rest;
+package tp1.impl.servers.rest;
 
 import java.util.logging.Logger;
 
 import jakarta.inject.Singleton;
 import tp1.api.service.java.Files;
 import tp1.api.service.rest.RestFiles;
-import tp1.impl.service.common.JavaFiles;
+import tp1.impl.servers.common.JavaFiles;
 
 @Singleton
 public class FilesResources extends RestResource implements RestFiles {

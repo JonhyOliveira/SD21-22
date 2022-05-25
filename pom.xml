@@ -57,7 +57,7 @@
 				<configuration>
 					<images>
 						<image>
-							<name>smduarte/sd2122-tp1-${authors}</name>
+							<name>sd2122-tp1-${authors}</name>
 							<build>
 								<dockerFile>${project.basedir}/Dockerfile</dockerFile>
 							</build>
