@@ -1,13 +1,12 @@
-package tp1.impl.service.common;
+package tp1.impl.servers.common;
 
 import com.github.scribejava.core.builder.ServiceBuilder;
 import com.github.scribejava.core.model.OAuth2AccessToken;
 import org.pac4j.scribe.builder.api.DropboxApi20;
 import tp1.api.service.java.Files;
 import tp1.api.service.java.Result;
-import tp1.impl.service.common.JavaFiles;
-import tp1.impl.service.common.dropbox.commands.*;
-import tp1.impl.service.common.dropbox.util.DropboxContext;
+import tp1.impl.servers.common.dropbox.commands.*;
+import tp1.impl.servers.common.dropbox.util.DropboxContext;
 import tp1.impl.service.rest.DropboxServer;
 
 import java.net.URL;
@@ -59,8 +58,8 @@ public class DropboxImpl implements Files {
 
 
             } else {
-                assert DeleteDropboxFileOrDirectory.execute(context, BASE_DIR).isOK();
-                assert CreateDropboxDirectory.execute(context, BASE_DIR, false).isOK();
+                DeleteDropboxFileOrDirectory.execute(context, BASE_DIR).isOK();
+                CreateDropboxDirectory.execute(context, BASE_DIR, false).isOK();
             }
         } catch (Exception e) {
             e.printStackTrace();

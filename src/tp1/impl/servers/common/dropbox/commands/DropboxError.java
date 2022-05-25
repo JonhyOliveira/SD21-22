@@ -1,4 +1,4 @@
-package tp1.impl.service.common.dropbox.commands;
+package tp1.impl.servers.common.dropbox.commands;
 
 import com.google.gson.annotations.SerializedName;
 

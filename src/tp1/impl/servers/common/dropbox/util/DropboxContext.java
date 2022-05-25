@@ -1,4 +1,4 @@
-package tp1.impl.service.common.dropbox.util;
+package tp1.impl.servers.common.dropbox.util;
 
 import com.github.scribejava.core.model.OAuth2AccessToken;
 import com.github.scribejava.core.model.OAuthRequest;

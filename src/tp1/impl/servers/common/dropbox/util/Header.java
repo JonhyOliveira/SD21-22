@@ -1,4 +1,4 @@
-package tp1.impl.service.common.dropbox.util;
+package tp1.impl.servers.common.dropbox.util;
 
 public record Header(String property, String value) {
 

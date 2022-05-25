@@ -1,15 +1,12 @@
-package tp1.impl.service.common.dropbox.commands;
+package tp1.impl.servers.common.dropbox.commands;
 
 import com.github.scribejava.core.model.OAuthRequest;
 import com.github.scribejava.core.model.Response;
 import com.google.gson.Gson;
 import tp1.api.service.java.Result;
-import tp1.impl.service.common.dropbox.util.DropboxContext;
-import tp1.impl.service.common.dropbox.util.Endpoints;
+import tp1.impl.servers.common.dropbox.util.DropboxContext;
+import tp1.impl.servers.common.dropbox.util.Endpoints;
 
-import java.io.IOException;
-import java.util.HashMap;
-import java.util.concurrent.ExecutionException;
 import java.util.logging.Logger;
 
 public class UpdateDropboxFile {
