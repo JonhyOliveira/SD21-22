@@ -12,7 +12,7 @@ import util.IP;
 
 public abstract class AbstractRestServer extends AbstractServer {
 	
-	protected static String SERVER_BASE_URI = "http://%s:%s/rest";
+	protected static String SERVER_BASE_URI = "https://%s:%s/rest";
 	
 	protected AbstractRestServer(Logger log, String service, int port) {
 		super(log, service, port);

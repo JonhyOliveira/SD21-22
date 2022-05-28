@@ -1,14 +1,21 @@
 package tp1.impl.servers.soap;
 
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.util.concurrent.Executors;
 import java.util.logging.Logger;
 
+import com.sun.net.httpserver.HttpsConfigurator;
+import com.sun.net.httpserver.HttpsServer;
 import jakarta.xml.ws.Endpoint;
 import tp1.impl.discovery.Discovery;
 import tp1.impl.servers.common.AbstractServer;
 import util.IP;
 
+import javax.net.ssl.SSLContext;
+
 public class AbstractSoapServer extends AbstractServer{
-	private static String SERVER_BASE_URI = "http://%s:%s/soap";
+	private static String SERVER_BASE_URI = "https://%s:%s/soap";
 
 	final Object implementor;
 	
@@ -26,6 +33,21 @@ public class AbstractSoapServer extends AbstractServer{
 	
 	protected void start() {
 		var ip = IP.hostAddress();
+
+		try {
+			var server = HttpsServer.create(new InetSocketAddress(ip, port), 0);
+
+			server.setExecutor(Executors.newCachedThreadPool());
+			server.setHttpsConfigurator(new HttpsConfigurator(SSLContext.getDefault()));
+
+			var endpoint = Endpoint.create(new SoapUsersWebService());
+			endpoint.publish(server.createContext("/soap"));
+
+			server.start();
+		}catch (Exception e ) {
+			e.printStackTrace();
+		}
+
 		var serverURI = String.format(SERVER_BASE_URI, ip, port);
 
 		Endpoint.publish(serverURI.replace(ip, INETADDR_ANY), implementor );
