@@ -1,5 +1,6 @@
 package tp1.impl.servers.common;
 
+import java.security.NoSuchAlgorithmException;
 import java.util.logging.Logger;
 
 public abstract class AbstractServer {
@@ -15,7 +16,7 @@ public abstract class AbstractServer {
 		this.Log = log;
 	}
 	
-	abstract protected void start();
+	abstract protected void start() throws NoSuchAlgorithmException;
 	
 	static {
 		System.setProperty("java.net.preferIPv4Stack", "true");

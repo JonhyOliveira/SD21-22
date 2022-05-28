@@ -1,6 +1,7 @@
 package tp1.impl.servers.rest;
 
 import java.net.URI;
+import java.security.NoSuchAlgorithmException;
 import java.util.logging.Logger;
 
 import org.glassfish.jersey.jdkhttp.JdkHttpServerFactory;
@@ -9,6 +10,8 @@ import org.glassfish.jersey.server.ResourceConfig;
 import tp1.impl.discovery.Discovery;
 import tp1.impl.servers.common.AbstractServer;
 import util.IP;
+
+import javax.net.ssl.SSLContext;
 
 public abstract class AbstractRestServer extends AbstractServer {
 	
@@ -19,7 +22,7 @@ public abstract class AbstractRestServer extends AbstractServer {
 	}
 
 
-	protected void start() {
+	protected void start() throws NoSuchAlgorithmException {
 		String ip = IP.hostAddress();
 		String serverURI = String.format(SERVER_BASE_URI, ip, port);
 		
@@ -27,7 +30,7 @@ public abstract class AbstractRestServer extends AbstractServer {
 		
 		registerResources( config );
 		
-		JdkHttpServerFactory.createHttpServer( URI.create(serverURI.replace(ip, INETADDR_ANY)), config);
+		JdkHttpServerFactory.createHttpServer( URI.create(serverURI.replace(ip, INETADDR_ANY)), config, SSLContext.getDefault());
 
 		Log.info(String.format("%s Server ready @ %s\n",  service, serverURI));
 		
