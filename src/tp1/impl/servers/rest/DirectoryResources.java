@@ -24,7 +24,7 @@ public class DirectoryResources extends RestResource implements RestDirectory {
 		impl = new JavaDirectory();
 	}
 
-	public FileInfo writeFile(Long version, String filename, byte[] data, String userId, String password) {
+	public FileInfo writeFile(String filename, byte[] data, String userId, String password) {
 		Log.info(String.format("REST writeFile: filename = %s, data.length = %d, userId = %s, password = %s \n",
 				filename, data.length, userId, password));
 
@@ -32,7 +32,7 @@ public class DirectoryResources extends RestResource implements RestDirectory {
 	}
 
 	@Override
-	public void deleteFile(Long version, String filename, String userId, String password) {
+	public void deleteFile(String filename, String userId, String password) {
 		Log.info(String.format("REST deleteFile: filename = %s, userId = %s, password =%s\n", filename, userId,
 				password));
 
@@ -40,7 +40,7 @@ public class DirectoryResources extends RestResource implements RestDirectory {
 	}
 
 	@Override
-	public void shareFile(Long version, String filename, String userId, String userIdShare, String password) {
+	public void shareFile(String filename, String userId, String userIdShare, String password) {
 		Log.info(String.format("REST shareFile: filename = %s, userId = %s, userIdShare = %s, password =%s\n", filename,
 				userId, userIdShare, password));
 
@@ -48,7 +48,7 @@ public class DirectoryResources extends RestResource implements RestDirectory {
 	}
 
 	@Override
-	public void unshareFile(Long version, String filename, String userId, String userIdShare, String password) {
+	public void unshareFile(String filename, String userId, String userIdShare, String password) {
 		Log.info(String.format("REST unshareFile: filename = %s, userId = %s, userIdShare = %s, password =%s\n",
 				filename, userId, userIdShare, password));
 
@@ -56,7 +56,7 @@ public class DirectoryResources extends RestResource implements RestDirectory {
 	}
 
 	@Override
-	public byte[] getFile(Long version, String filename, String userId, String accUserId, String password) {
+	public byte[] getFile(String filename, String userId, String accUserId, String password) {
 		Log.info(String.format("REST getFile: filename = %s, userId = %s, accUserId = %s, password =%s\n", filename,
 				userId, accUserId, password));
 
@@ -71,7 +71,7 @@ public class DirectoryResources extends RestResource implements RestDirectory {
 	}
 
 	@Override
-	public List<FileInfo> lsFile(Long version, String userId, String password) {
+	public List<FileInfo> lsFile(String userId, String password) {
 		long T0 = System.currentTimeMillis();
 		try {
 
@@ -84,7 +84,7 @@ public class DirectoryResources extends RestResource implements RestDirectory {
 	}
 
 	@Override
-	public void deleteUserFiles(Long version, String userId, String password, String token) {
+	public void deleteUserFiles(String userId, String password, String token) {
 		Log.info(
 				String.format("REST deleteUserFiles: user = %s, password = %s, token = %s\n", userId, password, token));
 
