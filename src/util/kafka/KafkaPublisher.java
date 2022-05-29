@@ -4,6 +4,7 @@ import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.serialization.StringSerializer;
+import org.checkerframework.checker.units.qual.K;
 
 import java.util.Properties;
 import java.util.concurrent.ExecutionException;
@@ -33,6 +34,17 @@ public class KafkaPublisher {
 
 	public void close() {
 		this.producer.close();
+	}
+
+	public long publish(ProducerRecord<String, String> record) {
+		try {
+			long offset = producer.send(record).get().offset();
+			return offset;
+		} catch (ExecutionException | InterruptedException e) {
+			e.printStackTrace();
+		}
+
+		return -1;
 	}
 
 	public long publish(String topic, String key, String value) {
