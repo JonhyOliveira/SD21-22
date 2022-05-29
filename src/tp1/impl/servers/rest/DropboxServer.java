@@ -13,7 +13,7 @@ import java.util.logging.Logger;
 public class DropboxServer extends AbstractRestServer {
 
     public static final int PORT = 9090;
-    public static final String SERVICE_NAME = "proxy.dropbox";
+    public static final String SERVICE_NAME = Files.SERVICE_NAME;
 
     private static final Logger Log = Logger.getLogger(DropboxServer.class.getName());
 
