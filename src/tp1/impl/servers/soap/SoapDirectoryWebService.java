@@ -12,6 +12,7 @@ import tp1.api.service.java.Result.ErrorCode;
 import tp1.api.service.soap.DirectoryException;
 import tp1.api.service.soap.SoapDirectory;
 import tp1.impl.servers.common.JavaDirectory;
+import tp1.impl.servers.common.kafka.JavaDirectoryKafka;
 
 @WebService(serviceName = SoapDirectory.NAME, targetNamespace = SoapDirectory.NAMESPACE, endpointInterface = SoapDirectory.INTERFACE)
 public class SoapDirectoryWebService extends SoapWebService implements SoapDirectory {
@@ -21,7 +22,7 @@ public class SoapDirectoryWebService extends SoapWebService implements SoapDirec
 	final Directory impl;
 
 	public SoapDirectoryWebService() {
-		impl = new JavaDirectory();
+		impl = new JavaDirectoryKafka(); // new JavaDirectory();
 	}
 
 	@Override
