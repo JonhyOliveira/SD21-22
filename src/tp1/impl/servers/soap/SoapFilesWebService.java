@@ -7,6 +7,7 @@ import tp1.api.service.java.Files;
 import tp1.api.service.soap.FilesException;
 import tp1.api.service.soap.SoapFiles;
 import tp1.impl.servers.common.JavaFiles;
+import tp1.impl.servers.common.kafka.JavaFilesKafka;
 
 @WebService(serviceName = SoapFiles.NAME, targetNamespace = SoapFiles.NAMESPACE, endpointInterface = SoapFiles.INTERFACE)
 public class SoapFilesWebService extends SoapWebService implements SoapFiles {
@@ -16,7 +17,7 @@ public class SoapFilesWebService extends SoapWebService implements SoapFiles {
 	final Files impl ;
 	
 	public SoapFilesWebService() {
-		impl = new JavaFiles();
+		impl = new JavaFilesKafka();// new JavaFiles();
 	}
 
 

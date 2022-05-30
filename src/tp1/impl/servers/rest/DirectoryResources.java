@@ -11,6 +11,7 @@ import tp1.api.service.java.Directory;
 import tp1.api.service.java.Result.ErrorCode;
 import tp1.api.service.rest.RestDirectory;
 import tp1.impl.servers.common.JavaDirectory;
+import tp1.impl.servers.common.kafka.JavaDirectoryKafka;
 
 @Singleton
 public class DirectoryResources extends RestResource implements RestDirectory {
@@ -21,7 +22,7 @@ public class DirectoryResources extends RestResource implements RestDirectory {
 	final Directory impl;
 
 	public DirectoryResources() {
-		impl = new JavaDirectory();
+		impl = new JavaDirectoryKafka(); // new JavaDirectory();
 	}
 
 	public FileInfo writeFile(Long version, String filename, byte[] data, String userId, String password) {

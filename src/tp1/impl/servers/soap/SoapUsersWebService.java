@@ -9,6 +9,7 @@ import tp1.api.service.java.Users;
 import tp1.api.service.soap.SoapUsers;
 import tp1.api.service.soap.UsersException;
 import tp1.impl.servers.common.JavaUsers;
+import tp1.impl.servers.common.kafka.JavaUsersKafka;
 
 @WebService(serviceName=SoapUsers.NAME, targetNamespace=SoapUsers.NAMESPACE, endpointInterface=SoapUsers.INTERFACE)
 public class SoapUsersWebService extends SoapWebService implements SoapUsers {
@@ -18,7 +19,7 @@ public class SoapUsersWebService extends SoapWebService implements SoapUsers {
 	final Users impl ;
 	
 	public SoapUsersWebService() {
-		impl = new JavaUsers();
+		impl = new JavaUsersKafka(); // new JavaUsers();
 	}
 
 	@Override

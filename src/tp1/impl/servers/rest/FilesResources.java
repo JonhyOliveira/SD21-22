@@ -6,6 +6,7 @@ import jakarta.inject.Singleton;
 import tp1.api.service.java.Files;
 import tp1.api.service.rest.RestFiles;
 import tp1.impl.servers.common.JavaFiles;
+import tp1.impl.servers.common.kafka.JavaFilesKafka;
 
 @Singleton
 public class FilesResources extends RestResource implements RestFiles {
@@ -14,7 +15,7 @@ public class FilesResources extends RestResource implements RestFiles {
 	protected Files impl;
 
 	public FilesResources() {
-		impl = new JavaFiles();
+		impl = new JavaFilesKafka();// new JavaFiles();
 	}
 
 	@Override
