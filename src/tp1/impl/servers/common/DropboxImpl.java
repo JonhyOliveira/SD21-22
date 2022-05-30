@@ -10,6 +10,7 @@ import tp1.impl.servers.common.dropbox.util.DropboxContext;
 import tp1.impl.servers.rest.DropboxServer;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 
 /**
@@ -29,7 +30,8 @@ public class DropboxImpl implements Files {
     
     private final DropboxContext context;
 
-    private Map<String, String> files;
+    // TODO isto devia de ser uma cache
+    private Map<String, String> files = new ConcurrentHashMap<>();
 
     public DropboxImpl() {
         var service = new ServiceBuilder(apiKey).apiSecret(apiSecret).build(DropboxApi20.INSTANCE);
@@ -52,9 +54,7 @@ public class DropboxImpl implements Files {
                     fetchedFileNames = Collections.emptyList();
                 }
 
-
                 fetchedFileNames.forEach(fileName -> files.put(fileName, fileName));
-
 
             } else {
                 DeleteDropboxFileOrDirectory.execute(context, BASE_DIR).isOK();
