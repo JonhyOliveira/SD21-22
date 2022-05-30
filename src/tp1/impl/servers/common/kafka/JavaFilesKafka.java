@@ -9,24 +9,35 @@ import util.kafka.KafkaSubscriber;
 
 
 import java.util.List;
+import java.util.logging.Logger;
 
 public class JavaFilesKafka extends JavaFiles {
+
+    final static Logger Log = Logger.getLogger(JavaFilesKafka.class.getName());
 
     private final OperationProcessor operationProcessor = new OperationProcessor();
 
     public JavaFilesKafka() {
         super();
         operationProcessor.registerOperationHandler(UsersOperations.DELETE
-                .generateOperationHandler(userId -> super.deleteUserFiles(userId, "")));
+                .generateOperationHandler(userId -> {
+                    Log.fine(String.format("User %s was deleted, files cleared.", userId));
+                    super.deleteUserFiles(userId, "");
+                }));
 
-        // TODO estas constantes deviam de estar num sitio melhor
         KafkaSubscriber.createSubscriber("kafka:9092", List.of(Users.SERVICE_NAME), "earliest")
                 .start(false, operationProcessor);
     }
 
     @Override
     public Result<Void> deleteUserFiles(String userId, String token) {
-        return Result.error(Result.ErrorCode.FORBIDDEN); // disabled, done through kafka
+        return Result.error(Result.ErrorCode.FORBIDDEN, "Disabled"); // disabled, done through kafka
     }
+
+    /*
+    * Nota: o files nao precisa de notificar quando um ficheiro e apagado
+    *
+    * */
+
 }
 
