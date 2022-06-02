@@ -2,22 +2,21 @@ package tp1.impl.servers.common.kafka;
 
 import tp1.api.service.java.Result;
 import tp1.api.service.java.Users;
-import tp1.impl.servers.common.JavaFiles;
+import tp1.impl.servers.common.DropboxImpl;
 import tp1.impl.servers.common.kafka.operations.OperationProcessor;
 import tp1.impl.servers.common.kafka.operations.UsersOperations;
 import util.kafka.KafkaSubscriber;
 
-
 import java.util.List;
 import java.util.logging.Logger;
 
-public class JavaFilesKafka extends JavaFiles {
+public class DropboxImplKafka extends DropboxImpl {
 
     final static Logger Log = Logger.getLogger(JavaFilesKafka.class.getName());
 
     private final OperationProcessor operationProcessor = new OperationProcessor();
 
-    public JavaFilesKafka() {
+    public DropboxImplKafka() {
         super();
         operationProcessor.registerOperationHandler(UsersOperations.DELETE
                 .generateOperationHandler(userId -> {
@@ -34,10 +33,4 @@ public class JavaFilesKafka extends JavaFiles {
         return Result.error(Result.ErrorCode.FORBIDDEN, "Disabled"); // disabled, done through kafka
     }
 
-    /*
-    * Nota: o files nao precisa de notificar quando um ficheiro e apagado
-    *
-    * */
-
 }
-

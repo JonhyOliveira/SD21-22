@@ -16,8 +16,14 @@ public class RestResource {
 	protected <T> T resultOrThrow(Result<T> result) {
 		if (result.isOK())
 			return result.value();
-		else
+		else {
+			if (result.errorValue() instanceof Throwable)
+				((Throwable) result.errorValue()).printStackTrace();
+			else if (result.errorValue() != null) {
+				System.out.println(result.errorValue().toString());
+			}
 			throw new WebApplicationException(statusCode(result));
+		}
 	}
 
 	/**

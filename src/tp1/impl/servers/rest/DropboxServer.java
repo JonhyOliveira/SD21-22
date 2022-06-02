@@ -27,7 +27,7 @@ public class DropboxServer extends AbstractRestServer {
     public void registerResources(ResourceConfig config) {
         config.register(DropboxResources.class);
         config.register(GenericExceptionMapper.class);
-        config.register(CustomLoggingFilter.class);
+//      config.register(CustomLoggingFilter.class);
     }
 
     public static void main(String[] args) throws Exception {

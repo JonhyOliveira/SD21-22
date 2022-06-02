@@ -115,7 +115,7 @@ public class JavaDirectory implements Directory {
 
 			executor.execute(() -> {
 				this.removeSharesOfFile(info);
-				FilesClients.get(file.uri()).deleteFile(fileId, password);
+				// FilesClients.get(file.uri()).deleteFile(fileId, password);
 			});
 			
 			getFileCounts(info.uri(), false).numFiles().decrementAndGet();

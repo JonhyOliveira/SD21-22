@@ -3,6 +3,7 @@ package tp1.impl.servers.common.dropbox.util;
 public record Header(String property, String value) {
 
     public static final String DROPBOX_ARG_HEADER = "Dropbox-API-Arg";
+    public static final String CONTENT_TYPE = "Content-Type";
 
     @Override
     public boolean equals(Object o) {

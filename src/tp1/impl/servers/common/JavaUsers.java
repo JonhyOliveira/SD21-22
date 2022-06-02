@@ -82,11 +82,11 @@ public class JavaUsers implements Users {
 			return error(FORBIDDEN);
 		else {
 			users.remove(userId);
-			executor.execute(()->{
+			/* executor.execute(()->{
 				DirectoryClients.get().deleteUserFiles(userId, password, Token.get());
 				for( var uri : FilesClients.all())
 					FilesClients.get(uri).deleteUserFiles( userId, password);
-			});
+			});*/
 			return ok(user);
 		}
 	}

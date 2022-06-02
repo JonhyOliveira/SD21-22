@@ -1,5 +1,7 @@
 package tp1.api.service.java;
 
+import java.util.Objects;
+
 /**
  * 
  * Represents the result of an operation, either wrapping a result of the given type,
@@ -162,6 +164,6 @@ class ErrorResult<T> implements tp1.api.service.java.Result<T> {
 	}
 	
 	public String toString() {
-		return "(" + error() + ")";		
+		return "(%s %s)".formatted(error(), Objects.requireNonNullElse(errorValue, "").toString());
 	}
 }

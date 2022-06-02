@@ -28,12 +28,6 @@ public class Clients {
 			(u) -> new RetryFilesClient(new SoapFilesClient(u))
 	);
 
-	public static final ClientFactory<Files> DropboxProxyClients = new ClientFactory<>(
-			DropboxServer.SERVICE_NAME,
-			(u) -> new RetryFilesClient(new RestFilesClient(u)),
-			(u) -> new RetryFilesClient(new SoapFilesClient(u))
-	);
-
 	public static final ClientFactory<Users> UsersClients = new ClientFactory<>(
 			Users.SERVICE_NAME, 
 			(u) -> new RetryUsersClient(new RestUsersClient(u)),

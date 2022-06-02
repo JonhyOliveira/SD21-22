@@ -2,15 +2,18 @@ package tp1.impl.servers.common;
 
 import com.github.scribejava.core.builder.ServiceBuilder;
 import com.github.scribejava.core.model.OAuth2AccessToken;
+import com.google.gson.Gson;
 import org.pac4j.scribe.builder.api.DropboxApi20;
 import tp1.api.service.java.Files;
 import tp1.api.service.java.Result;
-import tp1.impl.servers.common.dropbox.commands.*;
+import tp1.impl.servers.common.dropbox.DropboxRestClient;
 import tp1.impl.servers.common.dropbox.util.DropboxContext;
 import tp1.impl.servers.rest.DropboxServer;
+import util.Token;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.logging.Logger;
 
 /**
@@ -23,42 +26,47 @@ public class DropboxImpl implements Files {
 
     private static final String apiKey = "dlcfea3hujnjj3b";
     private static final String apiSecret = "6wifguey4f211u0";
-    private static final String accessTokenStr = "sl.BIDt4srARJjJ3TGsmt2VP9hPPJz74eIlUrYq44HDkCi8MqxPYL-b4bHyMbHu21xrYZfxPoGyMChja8hGiaEcWfBtvY3ma5RNlBCdAAZfWL9Dg05md-oqbdujNCEBwtbNdCnBNlU";
+    private static final String accessTokenStr = "sl.BIswR-W-TTrRq9dJnVH-6qQXo6zW8_aMBJMNrmTbpsNxgMx6IuORlrd_tlH6z6eSTofQ3NV9Jti2MN72f53GRfA4Upd1M3Nex_h5b3X39a2MhJRbTxQg_Sms70xoPsJ0kh4Bh-0";
 
     private static final String DELIMITER = JavaFiles.DELIMITER;
     private static final String BASE_DIR = "/tp1-21_22-SD";
-    
-    private final DropboxContext context;
+
+    private final DropboxRestClient dropboxClient;
 
     // TODO isto devia de ser uma cache
-    private Map<String, String> files = new ConcurrentHashMap<>();
+    private Set<String> files = new ConcurrentSkipListSet<>();
+    private Gson json = new Gson();
 
     public DropboxImpl() {
         var service = new ServiceBuilder(apiKey).apiSecret(apiSecret).build(DropboxApi20.INSTANCE);
-        context = new DropboxContext(service, new OAuth2AccessToken(accessTokenStr));
-
+        dropboxClient = new DropboxRestClient(new DropboxContext(service, new OAuth2AccessToken(accessTokenStr)));
+        Log.info("Initializing..");
         try {
             if (DropboxServer.PRESERVE) {
-                CreateDropboxDirectory.execute(context, BASE_DIR, true); // try to create
+                Log.info("Preserving.");
 
-                var res = ListDropboxDirectory.execute(context, BASE_DIR);
+                Log.info(String.valueOf(dropboxClient.createDirectory(BASE_DIR, true).isOK())); // create if does not exist
 
+                var res = dropboxClient.listDirectory(BASE_DIR);
+
+                Log.info(String.valueOf(res.isOK()));
                 Collection<String> fetchedFileNames;
 
                 if (res.isOK())
                     fetchedFileNames = res.value();
-                else if (res.errorValue() instanceof ListDropboxDirectory.Error) {
-                        fetchedFileNames = ((ListDropboxDirectory.Error) res.errorValue()).partial();
+                else if (res.errorValue() instanceof Collection) {
+                    fetchedFileNames = res.errorValue();
                 }
                 else {
                     fetchedFileNames = Collections.emptyList();
                 }
 
-                fetchedFileNames.forEach(fileName -> files.put(fileName, fileName));
+                files.addAll(fetchedFileNames);
 
             } else {
-                DeleteDropboxFileOrDirectory.execute(context, BASE_DIR).isOK();
-                CreateDropboxDirectory.execute(context, BASE_DIR, false).isOK();
+                Log.info("Not preserving.");
+                Log.info(String.valueOf(dropboxClient.delete(BASE_DIR).isOK()));
+                Log.info(String.valueOf(dropboxClient.createDirectory(BASE_DIR, false).isOK()));
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -66,76 +74,86 @@ public class DropboxImpl implements Files {
             System.exit(-1);
         }
 
-
+        Log.info("\rDone.........");
     }
 
     @Override
     public Result<byte[]> getFile(String fileId, String token) {
 
-        if (!files.containsKey(fileId)) // not in cache. cant retrieve
-            return Result.error(Result.ErrorCode.NOT_FOUND, "not in cache");
+        verifyToken(userId(fileId), token);
 
-        try {
-            return DownloadDropboxFile.execute(context, files.get(fileId));
+        var res = dropboxClient.getFile("%s/%s".formatted(BASE_DIR, fileId));
 
-        } catch (Exception e) {
-            e.printStackTrace();
-            return Result.error(Result.ErrorCode.INTERNAL_ERROR, e);
-        }
+        if (res.isOK())
+            this.files.add(fileId);
+
+        return res;
     }
 
     @Override
     public Result<Void> deleteFile(String fileId, String token) {
 
-        try {
-            var res = DeleteDropboxFileOrDirectory.execute(context, files.get(fileId));
+        verifyToken(userId(fileId), token);
 
-            if (res.isOK())
-                files.remove(fileId);
+        var res = dropboxClient.delete("%s/%s".formatted(BASE_DIR, fileId));
 
-            return res;
+        if (res.isOK())
+            this.files.remove(fileId);
 
-        } catch (Exception e) {
-            e.printStackTrace();
-            return Result.error(Result.ErrorCode.INTERNAL_ERROR, e);
-        }
-
+        return res;
     }
 
     @Override
     public Result<Void> writeFile(String fileId, byte[] data, String token) {
 
-        try {
-            var res = UpdateDropboxFile.execute(context, BASE_DIR + "/" + fileId, data);
+        verifyToken(userId(fileId), token);
 
-            Result<Void> ret;
+        var res = dropboxClient.uploadFile("%s/%s".formatted(BASE_DIR, fileId), data);
 
-            if (res.isOK()) {
-                files.put(fileId, res.value());
-                ret = Result.ok();
-            }
-            else
-                ret = Result.error(Result.ErrorCode.BAD_REQUEST);
-
-            return ret;
-
-        } catch (Exception e) {
-            e.printStackTrace();
-            return Result.error(Result.ErrorCode.INTERNAL_ERROR, e);
+        if (res.isOK()) {
+            return Result.ok();
         }
-
+        else
+            return Result.error(res.error(), res.errorValue());
 
     }
 
     @Override
     public Result<Void> deleteUserFiles(String userId, String token) {
-        if (files.keySet()
-                .stream()
+
+        verifyToken(userId, token);
+
+        if (files.stream()
                 .filter(fileID -> fileID.startsWith(userId + DELIMITER))
                 .allMatch(fileID -> deleteFile(fileID, token).isOK()))
             return Result.ok();
         else
             return Result.error(Result.ErrorCode.FORBIDDEN);
     }
+
+    private String userId(String fileId) {
+        return fileId.split(DELIMITER, 2)[0];
+    }
+
+    /**
+     * Checks if the token was created with the common secret
+     * @param token the token with unknown validity
+     * @return true if the token was created with the common secret and is valid, false otherwise
+     */
+    private boolean verifyToken(String token) {
+        return Token.get().equals(token);
+    }
+
+    /**
+     * Checks the validity of a token and it's owner
+     * @param userID the owner of the token
+     * @param token the token
+     * @return true if the token is valid, false otherwise
+     */
+    private boolean verifyToken(String userID, String token) {
+        return verifyToken(token);
+    }
+
+
 
 }
