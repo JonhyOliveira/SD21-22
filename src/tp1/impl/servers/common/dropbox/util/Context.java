@@ -8,12 +8,12 @@ import com.github.scribejava.core.oauth.OAuth20Service;
 import java.io.IOException;
 import java.util.concurrent.ExecutionException;
 
-public class DropboxContext {
+public class Context {
 
     private final OAuth20Service service;
     private OAuth2AccessToken token;
 
-    public DropboxContext(OAuth20Service service, OAuth2AccessToken accessToken) {
+    public Context(OAuth20Service service, OAuth2AccessToken accessToken) {
         this.service = service;
         this.token = accessToken;
     }

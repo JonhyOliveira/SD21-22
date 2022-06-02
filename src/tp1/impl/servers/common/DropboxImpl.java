@@ -7,12 +7,11 @@ import org.pac4j.scribe.builder.api.DropboxApi20;
 import tp1.api.service.java.Files;
 import tp1.api.service.java.Result;
 import tp1.impl.servers.common.dropbox.DropboxRestClient;
-import tp1.impl.servers.common.dropbox.util.DropboxContext;
-import tp1.impl.servers.rest.DropboxServer;
+import tp1.impl.servers.common.dropbox.util.Context;
+import tp1.impl.servers.common.dropbox.util.Preserve;
 import util.Token;
 
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.logging.Logger;
 
@@ -26,7 +25,7 @@ public class DropboxImpl implements Files {
 
     private static final String apiKey = "dlcfea3hujnjj3b";
     private static final String apiSecret = "6wifguey4f211u0";
-    private static final String accessTokenStr = "sl.BIswR-W-TTrRq9dJnVH-6qQXo6zW8_aMBJMNrmTbpsNxgMx6IuORlrd_tlH6z6eSTofQ3NV9Jti2MN72f53GRfA4Upd1M3Nex_h5b3X39a2MhJRbTxQg_Sms70xoPsJ0kh4Bh-0";
+    private static final String accessTokenStr = "sl.BIxXHNOfxKm7obRid_xj1jl_DnTHaOj_96C_JO51Dul89EDYsFwFELTqCK16bXMVoDt6d_E0-x1EJADN85Y-f3fAAUagaMa7A8OPEIVWHnsIV7O8ltz_qGlPvhkV2gIbZHc4GX8";
 
     private static final String DELIMITER = JavaFiles.DELIMITER;
     private static final String BASE_DIR = "/tp1-21_22-SD";
@@ -39,10 +38,10 @@ public class DropboxImpl implements Files {
 
     public DropboxImpl() {
         var service = new ServiceBuilder(apiKey).apiSecret(apiSecret).build(DropboxApi20.INSTANCE);
-        dropboxClient = new DropboxRestClient(new DropboxContext(service, new OAuth2AccessToken(accessTokenStr)));
+        dropboxClient = new DropboxRestClient(new Context(service, new OAuth2AccessToken(accessTokenStr)));
         Log.info("Initializing..");
         try {
-            if (DropboxServer.PRESERVE) {
+            if (Preserve.get()) {
                 Log.info("Preserving.");
 
                 Log.info(String.valueOf(dropboxClient.createDirectory(BASE_DIR, true).isOK())); // create if does not exist

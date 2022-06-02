@@ -3,15 +3,13 @@ package tp1.impl.servers.common.dropbox;
 import com.github.scribejava.core.model.OAuthRequest;
 import com.github.scribejava.core.model.Response;
 import com.google.gson.Gson;
-import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
 import tp1.api.service.java.Result;
-import tp1.impl.servers.common.dropbox.util.DropboxContext;
+import tp1.impl.servers.common.dropbox.util.Context;
 import tp1.impl.servers.common.dropbox.util.Endpoints;
 import tp1.impl.servers.common.dropbox.util.Header;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.logging.Logger;
@@ -24,9 +22,9 @@ public class DropboxRestClient  {
 
     private static final String DROPBOX_ARG_HEADER = "Dropbox-API-Arg";
 
-    private DropboxContext context;
+    private Context context;
 
-    public DropboxRestClient(DropboxContext context) {
+    public DropboxRestClient(Context context) {
         this.context = context;
     }
 
@@ -169,8 +167,8 @@ public class DropboxRestClient  {
         var args = json.toJson(Map.of("path", pathOrID));
 
 
-        var request = handleRequest(Endpoints.UpdateFile
-                .createUnsignedRequest(json.toJson(args)), args, "deleting");
+        var request = handleRequest(Endpoints.Delete
+                .createUnsignedRequest(args), args, "deleting");
 
         if (request.isOK())
             return Result.ok();
