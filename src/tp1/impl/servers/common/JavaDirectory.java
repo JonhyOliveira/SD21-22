@@ -92,7 +92,8 @@ public class JavaDirectory implements Directory {
 				files.put(fileId, file = new ExtendedFileInfo(uri1, uri2, fileId, info));
 				if (uf.owned().add(fileId)) {
 					getFileCounts(file.primaryURI(), true).numFiles().incrementAndGet();
-					getFileCounts(file.backupURI(), true).numFiles().incrementAndGet();
+					if (file.backupURI() != null)
+						getFileCounts(file.backupURI(), true).numFiles().incrementAndGet();
 				}
 				return ok(file.info());
 			}
@@ -129,7 +130,8 @@ public class JavaDirectory implements Directory {
 			});
 			
 			getFileCounts(info.primaryURI(), false).numFiles().decrementAndGet();
-			getFileCounts(info.backupURI(), false).numFiles().decrementAndGet();
+			if (file.backupURI() != null)
+				getFileCounts(info.backupURI(), false).numFiles().decrementAndGet();
 		}
 		return ok();
 	}
@@ -252,7 +254,8 @@ public class JavaDirectory implements Directory {
 				var file = files.remove(id);
 				removeSharesOfFile(file);
 				getFileCounts(file.primaryURI(), false).numFiles().decrementAndGet();
-				getFileCounts(file.backupURI(), false).numFiles().decrementAndGet();
+				if (file.backupURI() != null)
+					getFileCounts(file.backupURI(), false).numFiles().decrementAndGet();
 			}
 		return ok();
 	}
@@ -264,12 +267,13 @@ public class JavaDirectory implements Directory {
 
 
 	protected Queue<URI> orderCandidateFileServers(ExtendedFileInfo file) {
-		int MAX_SIZE=3;
+		int MAX_SIZE=4;
 		Queue<URI> result = new ArrayDeque<>();
 		
 		if( file != null ) {
 			result.add(file.primaryURI());
-			result.add(file.backupURI());
+			if (file.backupURI() != null)
+				result.add(file.backupURI());
 		}
 		FilesClients.all()
 				.stream()
