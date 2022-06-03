@@ -1,11 +1,9 @@
 package tp1.impl.servers.common;
 
+import static tp1.api.service.java.Result.ErrorCode.*;
 import static tp1.api.service.java.Result.error;
 import static tp1.api.service.java.Result.ok;
 import static tp1.api.service.java.Result.redirect;
-import static tp1.api.service.java.Result.ErrorCode.BAD_REQUEST;
-import static tp1.api.service.java.Result.ErrorCode.FORBIDDEN;
-import static tp1.api.service.java.Result.ErrorCode.NOT_FOUND;
 import static tp1.impl.clients.Clients.FilesClients;
 import static tp1.impl.clients.Clients.UsersClients;
 
@@ -29,13 +27,16 @@ import tp1.api.User;
 import tp1.api.service.java.Directory;
 import tp1.api.service.java.Result;
 import tp1.api.service.java.Result.ErrorCode;
+import tp1.impl.servers.common.kafka.operations.OperationProcessor;
+import tp1.impl.servers.common.kafka.operations.UsersAnnouncement;
 import util.Token;
+import util.kafka.KafkaSubscriber;
 
 public class JavaDirectory implements Directory {
 
 	static final long USER_CACHE_EXPIRATION = 3000;
 
-	protected final LoadingCache<UserInfo, Result<User>> users = CacheBuilder.newBuilder()
+	final LoadingCache<UserInfo, Result<User>> users = CacheBuilder.newBuilder()
 			.expireAfterWrite( Duration.ofMillis(USER_CACHE_EXPIRATION))
 			.build(new CacheLoader<>() {
 				@Override
@@ -54,6 +55,17 @@ public class JavaDirectory implements Directory {
 	final Map<String, ExtendedFileInfo> files = new ConcurrentHashMap<>();
 	final Map<String, UserFiles> userFiles = new ConcurrentHashMap<>();
 	final Map<URI, FileCounts> fileCounts = new ConcurrentHashMap<>();
+	final OperationProcessor operationProcessor = new OperationProcessor();
+
+	{
+		operationProcessor.registerOperationHandler(UsersAnnouncement.USER_DELETED.generateOperationHandler(userId -> {
+			Log.fine(String.format("User %s deleted, updating cache..", userId));
+			this.deleteUserFiles(userId, "", Token.get());
+		}));
+
+		KafkaSubscriber.createSubscriber("kafka:9092", List.of(UsersAnnouncement.NAMESPACE), "earliest")
+				.start(false, operationProcessor);
+	}
 
 	@Override
 	public Result<FileInfo> writeFile(String filename, byte[] data, String userId, String password) {
@@ -231,11 +243,11 @@ public class JavaDirectory implements Directory {
 		return userId + JavaFiles.DELIMITER + filename;
 	}
 
-	private static boolean badParam(String str) {
+	protected static boolean badParam(String str) {
 		return str == null || str.length() == 0;
 	}
 
-	private Result<User> getUser(String userId, String password) {
+	protected Result<User> getUser(String userId, String password) {
 		try {
 			return users.get( new UserInfo( userId, password));
 		} catch( Exception x ) {
@@ -319,7 +331,6 @@ public class JavaDirectory implements Directory {
 			public URI primaryURI () {
 				return primaryURI;
 			}
-
 
 			public URI backupURI () {
 				return backupURI;
