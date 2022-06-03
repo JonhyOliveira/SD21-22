@@ -9,18 +9,19 @@ import static tp1.api.service.java.Result.ErrorCode.NOT_FOUND;
 import static tp1.impl.clients.Clients.FilesClients;
 import static tp1.impl.clients.Clients.UsersClients;
 
+import java.io.IOException;
+import java.net.InetAddress;
 import java.net.URI;
+import java.net.URISyntaxException;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Queue;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Function;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -29,18 +30,23 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 
+import org.apache.zookeeper.*;
+import org.apache.zookeeper.data.Stat;
 import tp1.api.FileInfo;
 import tp1.api.User;
 import tp1.api.service.java.Directory;
+import tp1.api.service.java.Files;
 import tp1.api.service.java.Result;
 import tp1.api.service.java.Result.ErrorCode;
 import util.Token;
+import util.zookeeper.Zookeeper;
+import util.zookeeper.ZookeeperName;
 
 public class JavaDirectory implements Directory {
 
 	static final long USER_CACHE_EXPIRATION = 3000;
 
-	final LoadingCache<UserInfo, Result<User>> users = CacheBuilder.newBuilder()
+	protected final LoadingCache<UserInfo, Result<User>> users = CacheBuilder.newBuilder()
 			.expireAfterWrite( Duration.ofMillis(USER_CACHE_EXPIRATION))
 			.build(new CacheLoader<>() {
 				@Override
@@ -59,7 +65,7 @@ public class JavaDirectory implements Directory {
 	final Map<String, ExtendedFileInfo> files = new ConcurrentHashMap<>();
 	final Map<String, UserFiles> userFiles = new ConcurrentHashMap<>();
 	final Map<URI, FileCounts> fileCounts = new ConcurrentHashMap<>();
-	
+
 	@Override
 	public Result<FileInfo> writeFile(String filename, byte[] data, String userId, String password) {
 
@@ -75,21 +81,36 @@ public class JavaDirectory implements Directory {
 			var fileId = fileId(filename, userId);
 			var file = files.get(fileId);
 			var info = file != null ? file.info() : new FileInfo();
+			URI uri1 = null, uri2 = null;
 			for (var uri :  orderCandidateFileServers(file)) {
 				var result = FilesClients.get(uri).writeFile(fileId, data, Token.get());
-				if (result.isOK()) {
-					info.setOwner(userId);
-					info.setFilename(filename);
-					info.setFileURL(String.format("%s/files/%s", uri, fileId));
-					files.put(fileId, file = new ExtendedFileInfo(uri, fileId, info));
-					if( uf.owned().add(fileId))
-						getFileCounts(file.uri(), true).numFiles().incrementAndGet();
-					return ok(file.info());
+				if (result.isOK()) { // find first 2 distinct reachable uris (one main, one backup)
+					if (uri1 == null)
+						uri1 = uri;
+					else if (!uri.equals(uri1)) {
+						uri2 = uri;
+						break;
+					}
 				} else
 					Log.info(String.format("Files.writeFile(...) to %s failed with: %s \n", uri, result));
 			}
-			return error(BAD_REQUEST);
+
+			if (uri1 != null) {
+				info.setOwner(userId);
+				info.setFilename(filename);
+				info.setFileURL(String.format("%s/files/%s", uri1, fileId));
+
+				files.put(fileId, file = new ExtendedFileInfo(uri1, uri2, fileId, info));
+				if (uf.owned().add(fileId)) {
+					getFileCounts(file.primaryURI(), true).numFiles().incrementAndGet();
+					getFileCounts(file.backupURI(), true).numFiles().incrementAndGet();
+				}
+				return ok(file.info());
+			}
 		}
+
+		return error(BAD_REQUEST);
+
 	}
 
 	
@@ -115,10 +136,11 @@ public class JavaDirectory implements Directory {
 
 			executor.execute(() -> {
 				this.removeSharesOfFile(info);
-				// FilesClients.get(file.uri()).deleteFile(fileId, password);
+				// FilesClients.get(file.primaryURI()).deleteFile(fileId, password);
 			});
 			
-			getFileCounts(info.uri(), false).numFiles().decrementAndGet();
+			getFileCounts(info.primaryURI(), false).numFiles().decrementAndGet();
+			getFileCounts(info.backupURI(), false).numFiles().decrementAndGet();
 		}
 		return ok();
 	}
@@ -187,8 +209,8 @@ public class JavaDirectory implements Directory {
 
 		if (!file.info().hasAccess(accUserId))
 			return error(FORBIDDEN);
-		
-		return redirect( file.info().getFileURL() );
+
+		return redirect( String.format("%s/files/%s", upFileServers.contains(file.primaryURI()) ? file.primaryURI() : file.backupURI(), fileId) );
 	}
 
 	@Override
@@ -235,24 +257,26 @@ public class JavaDirectory implements Directory {
 			for (var id : fileIds.owned()) {
 				var file = files.remove(id);
 				removeSharesOfFile(file);
-				getFileCounts(file.uri(), false).numFiles().decrementAndGet();
+				getFileCounts(file.primaryURI(), false).numFiles().decrementAndGet();
+				getFileCounts(file.backupURI(), false).numFiles().decrementAndGet();
 			}
 		return ok();
 	}
 
-	private void removeSharesOfFile(ExtendedFileInfo file) {
+	protected void removeSharesOfFile(ExtendedFileInfo file) {
 		for (var userId : file.info().getSharedWith())
 			userFiles.getOrDefault(userId, new UserFiles()).shared().remove(file.fileId());
 	}
 
 
-	private Queue<URI> orderCandidateFileServers(ExtendedFileInfo file) {
+	protected Queue<URI> orderCandidateFileServers(ExtendedFileInfo file) {
 		int MAX_SIZE=3;
 		Queue<URI> result = new ArrayDeque<>();
 		
-		if( file != null )
-			result.add( file.uri() );
-
+		if( file != null ) {
+			result.add(file.primaryURI());
+			result.add(file.backupURI());
+		}
 		FilesClients.all()
 				.stream()
 				.filter( u -> ! result.contains(u))
@@ -269,7 +293,7 @@ public class JavaDirectory implements Directory {
 		return result;
 	}
 	
-	private FileCounts getFileCounts( URI uri, boolean create ) {
+	protected FileCounts getFileCounts( URI uri, boolean create ) {
 		if( create )
 			return fileCounts.computeIfAbsent(uri,  FileCounts::new);
 		else
@@ -277,7 +301,42 @@ public class JavaDirectory implements Directory {
 	}
 	
 	
-	static record ExtendedFileInfo(URI uri, String fileId, FileInfo info) {
+	static class ExtendedFileInfo {
+
+		private final String fileId;
+		private URI primaryURI, backupURI;
+		private final FileInfo info;
+
+		ExtendedFileInfo(URI primaryURI, URI backupURI, String fileId, FileInfo info) {
+			this.primaryURI = primaryURI;
+			this.backupURI = backupURI;
+			this.fileId = fileId;
+			this.info = info;
+		}
+
+		public String fileId () {
+				return fileId;
+			}
+
+			public URI primaryURI () {
+				return primaryURI;
+			}
+
+
+			public URI backupURI () {
+				return backupURI;
+			}
+
+			public FileInfo info () {
+				return info;
+			}
+
+			public void swapURIs () {
+				var temp = primaryURI;
+				primaryURI = backupURI;
+				backupURI = temp;
+			}
+
 	}
 
 	static record UserFiles(Set<String> owned, Set<String> shared) {

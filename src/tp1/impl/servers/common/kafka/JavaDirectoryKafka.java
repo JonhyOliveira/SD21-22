@@ -3,7 +3,7 @@ package tp1.impl.servers.common.kafka;
 import tp1.api.service.java.Result;
 import tp1.impl.servers.common.JavaDirectory;
 import tp1.impl.servers.common.kafka.operations.OperationProcessor;
-import tp1.impl.servers.common.kafka.operations.UsersOperations;
+import tp1.impl.servers.common.kafka.operations.UsersAnnouncement;
 import util.kafka.KafkaSubscriber;
 
 import java.util.List;
@@ -18,14 +18,20 @@ public class JavaDirectoryKafka extends JavaDirectory {
     public JavaDirectoryKafka() {
         super();
 
-        operationProcessor.registerOperationHandler(UsersOperations.DELETE.generateOperationHandler(userId -> {
-            Log.fine(String.format("User %s deleted, updating cache..", userId));
-            super.deleteUserFiles(userId, "", "");
-        }));
 
-        KafkaSubscriber.createSubscriber("kafka:9092", List.of(UsersOperations.NAMESPACE), "earliest")
-                .start(false, operationProcessor);
+
+
+            operationProcessor.registerOperationHandler(UsersAnnouncement.USER_DELETED.generateOperationHandler(userId -> {
+                Log.fine(String.format("User %s deleted, updating cache..", userId));
+                super.deleteUserFiles(userId, "", "");
+            }));
+
+            KafkaSubscriber.createSubscriber("kafka:9092", List.of(UsersAnnouncement.NAMESPACE), "earliest")
+                    .start(false, operationProcessor);
+
     }
+
+
 
     @Override
     public Result<Void> deleteUserFiles(String userId, String password, String token) {

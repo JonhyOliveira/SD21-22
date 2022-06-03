@@ -3,7 +3,7 @@ package tp1.impl.servers.common.kafka;
 import tp1.api.User;
 import tp1.api.service.java.Result;
 import tp1.impl.servers.common.JavaUsers;
-import tp1.impl.servers.common.kafka.operations.UsersOperations;
+import tp1.impl.servers.common.kafka.operations.UsersAnnouncement;
 import util.kafka.KafkaPublisher;
 
 import java.util.logging.Logger;
@@ -23,7 +23,7 @@ public class JavaUsersKafka extends JavaUsers {
         var r = super.deleteUser(userId, password);
 
         if (r.isOK())
-            publisher.publish(UsersOperations.DELETE.generateOperation(userId));
+            publisher.publish(UsersAnnouncement.USER_DELETED.generateOperation(userId));
 
         return r;
     }

@@ -1,15 +1,13 @@
 package tp1.impl.servers.common.kafka.operations;
 
 import org.apache.kafka.clients.producer.ProducerRecord;
-import tp1.api.service.java.Users;
 
 import java.util.function.Consumer;
 
-public enum UsersOperations implements OperationHandlerGenerator, OperationGenerator {
+public enum GeneralAnnouncements implements AnnouncementGenerator, AnnouncementHandlerGenerator {
+    AM_UP;
 
-    DELETE;
-
-    public static final String NAMESPACE = Users.SERVICE_NAME;
+    private static final String NAMESPACE = "General";
 
     @Override
     public OperationHandler generateOperationHandler(Consumer<String> handler) {

@@ -29,7 +29,7 @@ public class DirectoryRestServer extends AbstractRestServer {
 	
 	public static void main(String[] args) throws Exception {
 
-		Debug.setLogLevel( Level.INFO, Debug.TP1);
+		Debug.setLogLevel( Level.FINER, Debug.TP1);
 
 		Token.set( args.length > 0 ? args[0] : "");
 

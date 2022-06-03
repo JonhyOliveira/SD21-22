@@ -4,7 +4,7 @@ import tp1.api.service.java.Result;
 import tp1.api.service.java.Users;
 import tp1.impl.servers.common.DropboxImpl;
 import tp1.impl.servers.common.kafka.operations.OperationProcessor;
-import tp1.impl.servers.common.kafka.operations.UsersOperations;
+import tp1.impl.servers.common.kafka.operations.UsersAnnouncement;
 import util.kafka.KafkaSubscriber;
 
 import java.util.List;
@@ -18,7 +18,7 @@ public class DropboxImplKafka extends DropboxImpl {
 
     public DropboxImplKafka() {
         super();
-        operationProcessor.registerOperationHandler(UsersOperations.DELETE
+        operationProcessor.registerOperationHandler(UsersAnnouncement.USER_DELETED
                 .generateOperationHandler(userId -> {
                     Log.info(String.format("User %s was deleted, files cleared.", userId));
                     super.deleteUserFiles(userId, "");

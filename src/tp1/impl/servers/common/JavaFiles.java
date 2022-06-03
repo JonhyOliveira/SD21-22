@@ -9,12 +9,17 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Comparator;
+import java.util.logging.Logger;
 
+import org.apache.zookeeper.CreateMode;
 import tp1.api.service.java.Files;
 import tp1.api.service.java.Result;
 import util.IO;
+import util.zookeeper.Zookeeper;
 
 public class JavaFiles implements Files {
+
+	final static Logger Log = Logger.getLogger(JavaFiles.class.getName());
 
 	static final String DELIMITER = "$$$";
 	private static final String ROOT = "/tmp/";

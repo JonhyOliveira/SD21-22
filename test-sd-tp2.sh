@@ -14,5 +14,5 @@ fi
 docker pull nunopreguica/sd2122-tester-tp2
 
 # execute the client with the given command line parameters
-docker run --rm --network=sdnet -it -v /var/run/docker.sock:/var/run/docker.sock nunopreguica/sd2122-tester-tp2 $*
+docker run --rm --network=sdnet -it -v /var/run/docker.sock:/var/run/docker.sock nunopreguica/sd2122-tester-tp2:latest $*
 
