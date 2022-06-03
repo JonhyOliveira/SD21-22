@@ -2,6 +2,7 @@ package tp1.impl.clients;
 
 import java.net.URI;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import java.util.function.Function;
 
@@ -45,8 +46,8 @@ public class ClientFactory<T> {
 	
 	
 	public T get() {
-		URI[] uris = Discovery.getInstance().findUrisOf(serviceName, 1);
-		return get(uris[0]);
+		List<URI> uris = Discovery.getInstance().findUrisOf(serviceName, 1);
+		return get(uris.get(0));
 	}
 	
 	public T get(URI uri) {
@@ -64,6 +65,6 @@ public class ClientFactory<T> {
 	}
 	
 	public List<URI> all()  {
-		return Arrays.asList(Discovery.getInstance().findUrisOf(serviceName, 1));
+		return Discovery.getInstance().findUrisOf(serviceName, 1);
 	}	
 }

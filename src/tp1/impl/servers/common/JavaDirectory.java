@@ -9,19 +9,13 @@ import static tp1.api.service.java.Result.ErrorCode.NOT_FOUND;
 import static tp1.impl.clients.Clients.FilesClients;
 import static tp1.impl.clients.Clients.UsersClients;
 
-import java.io.IOException;
-import java.net.InetAddress;
 import java.net.URI;
-import java.net.URISyntaxException;
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.function.Function;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -30,17 +24,12 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 
-import org.apache.zookeeper.*;
-import org.apache.zookeeper.data.Stat;
 import tp1.api.FileInfo;
 import tp1.api.User;
 import tp1.api.service.java.Directory;
-import tp1.api.service.java.Files;
 import tp1.api.service.java.Result;
 import tp1.api.service.java.Result.ErrorCode;
 import util.Token;
-import util.zookeeper.Zookeeper;
-import util.zookeeper.ZookeeperName;
 
 public class JavaDirectory implements Directory {
 
@@ -210,7 +199,12 @@ public class JavaDirectory implements Directory {
 		if (!file.info().hasAccess(accUserId))
 			return error(FORBIDDEN);
 
-		return redirect( String.format("%s/files/%s", upFileServers.contains(file.primaryURI()) ? file.primaryURI() : file.backupURI(), fileId) );
+		if (!FilesClients.all().contains(file.primaryURI())) {
+			Log.fine("Primary URI %s declared unresponsive. Switching 2 backup: %s".formatted(file.primaryURI(), file.backupURI()));
+			file.switch2Backup();
+		}
+
+		return redirect( file.info().getFileURL() );
 	}
 
 	@Override
@@ -331,10 +325,11 @@ public class JavaDirectory implements Directory {
 				return info;
 			}
 
-			public void swapURIs () {
+			public void switch2Backup() {
 				var temp = primaryURI;
 				primaryURI = backupURI;
 				backupURI = temp;
+				info.setFileURL(String.format("%s/files/%s", primaryURI, fileId));
 			}
 
 	}

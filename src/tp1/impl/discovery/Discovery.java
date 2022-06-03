@@ -9,12 +9,14 @@ import java.net.MulticastSocket;
 import java.net.NetworkInterface;
 import java.net.SocketException;
 import java.net.URI;
-import java.util.Arrays;
-import java.util.Enumeration;
-import java.util.Map;
-import java.util.Set;
+import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.time.temporal.TemporalUnit;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 import util.Sleep;
 
@@ -33,7 +35,7 @@ public class Discovery {
 	static final int DISCOVERY_TIMEOUT = 10000;
 	static final InetSocketAddress DISCOVERY_ADDR = new InetSocketAddress("226.226.226.226", 2262);
 
-	final Map<String, Set<URI>> discoveries = new ConcurrentHashMap<>();
+	final Map<String, Set<URIEntry>> discoveries = new ConcurrentHashMap<>();
 	
 	static Discovery instance;
 	
@@ -54,7 +56,7 @@ public class Discovery {
 	public void announce(String serviceName, String serviceURI) {
 		Log.info(String.format("Starting Discovery announcements on: %s for: %s -> %s\n", DISCOVERY_ADDR, serviceName, serviceURI));
 
-		byte[] pktBytes = String.format("%s%s%s", serviceName, DELIMITER, serviceURI).getBytes();
+		byte[] pktBytes = String.format("%s%s%s", serviceName, DELIMITER, serviceURI).getBytes(StandardCharsets.UTF_8);
 
 		DatagramPacket pkt = new DatagramPacket(pktBytes, pktBytes.length, DISCOVERY_ADDR);
 		new Thread(() -> {
@@ -90,15 +92,18 @@ public class Discovery {
 					pkt.setLength(MAX_DATAGRAM_SIZE);
 					ms.receive(pkt);
 					
-					var tokens = new String(pkt.getData(), 0, pkt.getLength()).split(DELIMITER);
+					var tokens = new String(pkt.getData(), 0, pkt.getLength(), StandardCharsets.UTF_8).split(DELIMITER);
 					Log.finest( "Received: " + Arrays.asList(tokens) + "\n");
 					
 					if (tokens.length == 2) {
 						
 						var name = tokens[0];
 						var uri = URI.create( tokens[1]);
-						
-						discoveries.computeIfAbsent(name, (k) -> ConcurrentHashMap.newKeySet()).add( uri );
+
+						var entrySet = discoveries.computeIfAbsent(name, (k) -> ConcurrentHashMap.newKeySet());
+						var entry = new URIEntry(uri, Instant.now());
+						entrySet.remove(entry);
+						entrySet.add(entry);
 					}
 				} catch (IOException e) {
 					Sleep.ms(DISCOVERY_PERIOD);
@@ -110,14 +115,17 @@ public class Discovery {
 		}
 	}
 	
-	
-	public URI[] findUrisOf(String serviceName, int minRepliesNeeded) {
+	private static final int URI_VALIDITY = 10; // seconds
+
+	public List<URI> findUrisOf(String serviceName, int minRepliesNeeded) {
 		Log.info(String.format("Discovery.findUrisOf( serviceName: %s, minRequired: %d\n", serviceName, minRepliesNeeded));
 		
 		for(;;) {
 			var results = discoveries.get( serviceName );
 			if( results != null && results.size() >= minRepliesNeeded )
-				return results.toArray( new URI[ results.size() ]);
+				return results.stream()
+						.filter(uriEntry -> new Date().before(Date.from(uriEntry.lastRecorded().plus(URI_VALIDITY, ChronoUnit.SECONDS))))
+						.map(URIEntry::uri).toList();
 			else
 				Sleep.ms( DISCOVERY_PERIOD );
 		}
@@ -133,5 +141,22 @@ public class Discovery {
 				x.printStackTrace();
 			}
 		}
-	}	
+	}
+
+	private record URIEntry(URI uri, Instant lastRecorded) {
+		@Override
+		public boolean equals(Object o) {
+			if (this == o) return true;
+			if (o == null || getClass() != o.getClass()) return false;
+
+			URIEntry uriEntry = (URIEntry) o;
+
+			return uri.equals(uriEntry.uri);
+		}
+
+		@Override
+		public int hashCode() {
+			return uri.hashCode();
+		}
+	}
 }
