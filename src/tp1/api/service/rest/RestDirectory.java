@@ -25,7 +25,6 @@ public interface RestDirectory {
 	 * A file resource will has the full path "userId/filename".
 	 * 
 	 *
-	 * @param version
 	 * @param filename - name of the file.
 	 * @param data     - contents of the file.
 	 * @param userId   - id of the user.
@@ -38,7 +37,7 @@ public interface RestDirectory {
 	@Path("/{" + USER_ID + "}/{" + FILENAME + "}")
 	@Consumes(MediaType.APPLICATION_OCTET_STREAM)
 	@Produces(MediaType.APPLICATION_JSON)
-	FileInfo writeFile(@HeaderParam(VERSION_HEADER) Long version, @PathParam(FILENAME) String filename, byte[] data, @PathParam(USER_ID) String userId,
+	FileInfo writeFile(@PathParam(FILENAME) String filename, byte[] data, @PathParam(USER_ID) String userId,
 					   @QueryParam(PASSWORD) String password);
 
 	/**
@@ -46,7 +45,6 @@ public interface RestDirectory {
 	 * delete the file.
 	 * 
 	 *
-	 * @param version
 	 * @param filename - name of the file.
 	 * @param userId   - id of the user.
 	 * @param password - the password of the user.
@@ -56,7 +54,7 @@ public interface RestDirectory {
 	 */
 	@DELETE
 	@Path("/{" + USER_ID + "}/{" + FILENAME + "}")
-	void deleteFile(@HeaderParam(VERSION_HEADER) Long version, @PathParam(FILENAME) String filename, @PathParam(USER_ID) String userId,
+	void deleteFile(@PathParam(FILENAME) String filename, @PathParam(USER_ID) String userId,
 					@QueryParam(PASSWORD) String password);
 
 	/**
@@ -68,7 +66,6 @@ public interface RestDirectory {
 	 * has access to the file, the operation still succeeds).
 	 * 
 	 *
-	 * @param version
 	 * @param filename    - name of the file.
 	 * @param userId      - id of the user.
 	 * @param userIdShare - id of the user to share the file with.
@@ -79,7 +76,7 @@ public interface RestDirectory {
 	 */
 	@POST
 	@Path("/{" + USER_ID + "}/{" + FILENAME + "}/share/{" + USER_ID_SHARE + "}")
-	void shareFile(Long version, @PathParam(FILENAME) String filename, @PathParam(USER_ID) String userId,
+	void shareFile(@PathParam(FILENAME) String filename, @PathParam(USER_ID) String userId,
 				   @PathParam(USER_ID_SHARE) String userIdShare, @QueryParam(PASSWORD) String password);
 
 	/**
@@ -90,7 +87,6 @@ public interface RestDirectory {
 	 * userId/filename exist and password is correct (note: if userIdShare does not
 	 * have access to the file, the operation still succeeds).
 	 * 
-	 * @param version
 	 * @param filename    - name of the file.
 	 * @param userId      - id of the user.
 	 * @param userIdShare - id of the user to unshare the file with.
@@ -101,7 +97,7 @@ public interface RestDirectory {
 	 */
 	@DELETE
 	@Path("/{" + USER_ID + "}/{" + FILENAME + "}/share/{" + USER_ID_SHARE + "}")
-	void unshareFile(@HeaderParam(VERSION_HEADER) Long version, @PathParam(FILENAME) String filename, @PathParam(USER_ID) String userId,
+	void unshareFile(@PathParam(FILENAME) String filename, @PathParam(USER_ID) String userId,
 					 @PathParam(USER_ID_SHARE) String userIdShare, @QueryParam(PASSWORD) String password);
 
 	/**
@@ -111,7 +107,6 @@ public interface RestDirectory {
 	 * This operation should be implemented using HTTP redirect on success.
 	 * 
 	 *
-	 * @param version
 	 * @param filename  - name of the file.
 	 * @param userId    - id of the user.
 	 * @param accUserId - id of the user executing the operation.
@@ -125,14 +120,13 @@ public interface RestDirectory {
 	@GET
 	@Path("/{" + USER_ID + "}/{" + FILENAME + "}")
 	@Produces(MediaType.APPLICATION_OCTET_STREAM)
-	byte[] getFile(@HeaderParam(VERSION_HEADER) Long version, @PathParam(FILENAME) String filename, @PathParam(USER_ID) String userId,
+	byte[] getFile(@PathParam(FILENAME) String filename, @PathParam(USER_ID) String userId,
 				   @QueryParam(ACC_USER_ID) String accUserId, @QueryParam(PASSWORD) String password);
 
 	/**
 	 * List the files a given user ("userId") has access to - this includes both its
 	 * own files and the files shared with her.
 	 * 
-	 * @param version
 	 * @param userId   - id of the user.
 	 * @param password - the password of the user.
 	 *
@@ -142,10 +136,10 @@ public interface RestDirectory {
 	@GET
 	@Path("/{" + USER_ID + "}")
 	@Produces(MediaType.APPLICATION_JSON)
-	List<FileInfo> lsFile(@HeaderParam(VERSION_HEADER) Long version, @PathParam(USER_ID) String userId, @QueryParam(PASSWORD) String password);
+	List<FileInfo> lsFile(@PathParam(USER_ID) String userId, @QueryParam(PASSWORD) String password);
 
 	@DELETE
 	@Path("{" + USER_ID + "}")
-	void deleteUserFiles(@HeaderParam(VERSION_HEADER) Long version, @PathParam(USER_ID) String userId, @QueryParam(PASSWORD) @DefaultValue("") String password, @QueryParam(TOKEN) String token);
+	void deleteUserFiles(@PathParam(USER_ID) String userId, @QueryParam(PASSWORD) @DefaultValue("") String password, @QueryParam(TOKEN) String token);
 
 }
