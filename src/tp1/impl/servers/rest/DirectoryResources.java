@@ -22,7 +22,7 @@ public class DirectoryResources extends RestResource implements RestDirectory {
 	final Directory impl;
 
 	public DirectoryResources() {
-		impl = new JavaDirectoryKafka(); // new JavaDirectory();
+		impl = new JavaDirectory();
 	}
 
 	public FileInfo writeFile(Long version, String filename, byte[] data, String userId, String password) {
