@@ -258,8 +258,12 @@ public class JavaDirectory implements Directory {
 	
 	@Override
 	public Result<Void> deleteUserFiles(String userId, String password, String token) {
+		return error(INTERNAL_ERROR, "Not used");
+	}
+
+	protected void deleteUserFiles(String userId, String password) {
 		users.invalidate( new UserInfo(userId, password));
-		
+
 		var fileIds = userFiles.remove(userId);
 		if (fileIds != null)
 			for (var id : fileIds.owned()) {
@@ -269,7 +273,6 @@ public class JavaDirectory implements Directory {
 				if (file.backupURI() != null)
 					getFileCounts(file.backupURI(), false).numFiles().decrementAndGet();
 			}
-		return ok();
 	}
 
 	protected void removeSharesOfFile(ExtendedFileInfo file) {
