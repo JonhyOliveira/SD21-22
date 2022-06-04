@@ -23,7 +23,7 @@ public class JavaUsersKafka extends JavaUsers {
         var r = super.deleteUser(userId, password);
 
         if (r.isOK())
-            publisher.publish(UsersAnnouncement.USER_DELETED.generateOperation(userId));
+            publisher.publish(UsersAnnouncement.USER_DELETED.generateRecord(userId));
 
         return r;
     }

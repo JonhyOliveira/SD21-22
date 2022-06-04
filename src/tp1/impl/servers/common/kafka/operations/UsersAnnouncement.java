@@ -17,7 +17,7 @@ public enum UsersAnnouncement implements AnnouncementHandlerGenerator, Announcem
     }
 
     @Override
-    public ProducerRecord<String, String> generateOperation(String args) {
+    public ProducerRecord<String, String> generateRecord(String args) {
         return new ProducerRecord<>(NAMESPACE, this.name(), args);
     }
 }
