@@ -18,7 +18,7 @@ public enum FilesOperations implements AnnouncementGenerator, AnnouncementHandle
     }
 
     @Override
-    public ProducerRecord<String, String> generateOperation(String args) {
+    public ProducerRecord<String, String> generateRecord(String args) {
         return new ProducerRecord<>(NAMESPACE, this.name(), args);
     }
 }
