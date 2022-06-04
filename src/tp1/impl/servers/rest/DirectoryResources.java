@@ -11,7 +11,6 @@ import tp1.api.service.java.Directory;
 import tp1.api.service.java.Result.ErrorCode;
 import tp1.api.service.rest.RestDirectory;
 import tp1.impl.servers.common.JavaDirectory;
-import tp1.impl.servers.common.kafka.JavaDirectoryKafka;
 
 @Singleton
 public class DirectoryResources extends RestResource implements RestDirectory {
