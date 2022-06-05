@@ -29,6 +29,7 @@ import tp1.api.service.java.Result;
 import tp1.api.service.java.Result.ErrorCode;
 import tp1.impl.servers.common.kafka.operations.OperationProcessor;
 import tp1.impl.servers.common.kafka.operations.UsersAnnouncement;
+import util.Hash;
 import util.Token;
 import util.kafka.KafkaSubscriber;
 
@@ -57,6 +58,9 @@ public class JavaDirectory implements Directory {
 	final Map<URI, FileCounts> fileCounts = new ConcurrentHashMap<>();
 	final OperationProcessor operationProcessor = new OperationProcessor();
 
+	private int counter = 0;
+	private String access;
+
 	{
 		operationProcessor.registerOperationHandler(UsersAnnouncement.USER_DELETED.generateOperationHandler(userId -> {
 			Log.fine(String.format("User %s deleted, updating cache..", userId));
@@ -84,7 +88,10 @@ public class JavaDirectory implements Directory {
 			var info = file != null ? file.info() : new FileInfo();
 			URI uri1 = null, uri2 = null;
 			for (var uri :  orderCandidateFileServers(file)) {
-				var result = FilesClients.get(uri).writeFile(fileId, data, Token.get());
+				//var result = FilesClients.get(uri).writeFile(fileId, data, Token.get());
+				counter++;
+				access = "wr";
+				var result = FilesClients.get(uri).writeFile(fileId, data, newToken(fileId));
 				if (result.isOK()) { // find first 2 distinct reachable uris (one main, one backup)
 					if (uri1 == null)
 						uri1 = uri;
@@ -112,7 +119,6 @@ public class JavaDirectory implements Directory {
 		}
 
 		return error(BAD_REQUEST);
-
 	}
 
 	
@@ -139,6 +145,9 @@ public class JavaDirectory implements Directory {
 			executor.execute(() -> {
 				this.removeSharesOfFile(info);
 				// FilesClients.get(file.primaryURI()).deleteFile(fileId, password);
+				counter++;
+				access = "wr";
+				FilesClients.get(file.primaryURI()).deleteFile(fileId, newToken(fileId));
 			});
 			
 			getFileCounts(info.primaryURI(), false).numFiles().decrementAndGet();
@@ -309,7 +318,11 @@ public class JavaDirectory implements Directory {
 		else
 			return fileCounts.getOrDefault( uri, new FileCounts(uri) );
 	}
-	
+
+	protected String newToken(String fileId) {
+		long expirationDate = System.currentTimeMillis() + 10000;
+		return (fileId + JavaFiles.DELIMITER + expirationDate + JavaFiles.DELIMITER + counter + JavaFiles.DELIMITER + access + JavaFiles.DELIMITER + Hash.of(fileId, expirationDate, Token.get()));
+	}
 	
 	static class ExtendedFileInfo {
 
