@@ -1,6 +1,7 @@
 package tp1.impl.servers.rest;
 
 import org.glassfish.jersey.server.ResourceConfig;
+import org.slf4j.Logger;
 import tp1.impl.servers.common.JavaDirectorySynchronizer;
 import tp1.impl.servers.rest.util.GenericExceptionMapper;
 import tp1.impl.servers.rest.util.VersionFilter;
@@ -28,7 +29,7 @@ public class DirectoryReplicatedRestServer extends DirectoryRestServer {
     }
 
     public static void main(String[] args) throws NoSuchAlgorithmException {
-        Debug.setLogLevel(Level.FINER, Debug.TP1);
+        Debug.setLogLevel(Level.ALL, Debug.TP1);
 
         Token.set(args.length > 0 ? args[0] : "");
 

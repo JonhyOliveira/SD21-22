@@ -14,7 +14,7 @@ public class Zookeeper implements Watcher {
     public static Zookeeper getInstance() {
         if (instance == null) {
             try {
-                instance = new Zookeeper("kafka");
+                instance = new Zookeeper("kafka:");
                 System.out.println("Zookeeper initialized.");
             } catch (IOException | InterruptedException e) {
                 System.err.println("Failed to initialize zookeeper");

@@ -10,6 +10,7 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
@@ -19,6 +20,7 @@ import java.util.logging.Logger;
  * @author smduarte
  */
 public class Discovery {
+
     private static final Logger Log = Logger.getLogger(Discovery.class.getName());
     private static final String DELIMITER = "\t";
 
@@ -36,6 +38,10 @@ public class Discovery {
             new Thread(instance::listener).start();
         }
         return instance;
+    }
+
+    static {
+        Log.setLevel(Level.INFO);
     }
 
     /**

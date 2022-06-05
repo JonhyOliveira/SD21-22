@@ -20,6 +20,7 @@ public interface IOperation extends Comparable<IOperation> {
 
     default ProducerRecord<String, String> toRecord(String topic) {
         var record = new ProducerRecord<>(topic, key(), data());
+
         record.headers().add(new RecordHeader(VERSION_HEADER, version() != null ? new byte[]{version().v().byteValue()} : new byte[] { Long.valueOf(-1L).byteValue() }));
         record.headers().add(new RecordHeader(REPLICA_HEADER, version() != null ? version().replicaID().getBytes(HEADER_CHARSET) : "".getBytes(HEADER_CHARSET)));
 

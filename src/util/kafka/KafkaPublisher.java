@@ -16,6 +16,8 @@ public class KafkaPublisher {
         // Localização dos servidores kafka (lista de máquinas + porto)
         props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, brokers);
 
+        // props.put("log.retention.minutes", 10);
+
         // Classe para serializar as chaves dos eventos (string)
         props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
 

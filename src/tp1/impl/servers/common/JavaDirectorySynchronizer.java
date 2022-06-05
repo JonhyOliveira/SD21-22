@@ -13,6 +13,7 @@ import tp1.impl.servers.common.replication.Version;
 import util.Json;
 import util.kafka.KafkaPublisher;
 import util.kafka.KafkaSubscriber;
+import util.kafka.KafkaUtils;
 import util.kafka.RecordProcessor;
 import util.zookeeper.Zookeeper;
 
@@ -30,26 +31,28 @@ public class JavaDirectorySynchronizer implements Directory, RecordProcessor {
     final Gson json = Json.getInstance();
 
     private final KafkaPublisher publisher;
+    private final KafkaSubscriber receiver;
     private final String replicaId;
     private final Version currentVersion;
 
     private final SortedSet<OperationRecord> appliedOperations; // items are inserted from back to front (more recent are at the front)
 
     public JavaDirectorySynchronizer() {
+        KafkaUtils.createTopic("kafka:9092", DirectoryOperation.NAMESPACE);
+        publisher = KafkaPublisher.createPublisher("kafka:9092");
+        receiver = KafkaSubscriber.createSubscriber("kafka:9092", List.of(DirectoryOperation.NAMESPACE), "earliest");
+        receiver.start(false, this);
+
         this.appliedOperations = new ConcurrentSkipListSet<>(Comparator.comparing(OperationRecord::version));
 
-        var zookeeper = Zookeeper.getInstance();
+        replicaId = String.valueOf(Math.random());
+        /*var zookeeper = Zookeeper.getInstance();
         zookeeper.createNode("/dirs", new byte[0], CreateMode.PERSISTENT);
-        replicaId = zookeeper.createNode("/dirs/dir_", new byte[0], CreateMode.EPHEMERAL_SEQUENTIAL);
+        replicaId = zookeeper.createNode("/dirs/dir_", new byte[0], CreateMode.EPHEMERAL_SEQUENTIAL);*/
 
         currentVersion = new Version(-1L, ""); // will accept any change
 
         Log.info("My name is %s. I am the law.".formatted(replicaId));
-
-        KafkaSubscriber.createSubscriber("kafka:9092", List.of(DirectoryOperation.NAMESPACE), "latest")
-                .start(false, this);
-
-        publisher = KafkaPublisher.createPublisher("kafka:9092");
     }
 
     @Override
@@ -136,13 +139,15 @@ public class JavaDirectorySynchronizer implements Directory, RecordProcessor {
      *
      * @param op the operation
      */
-    private synchronized void processIncomingOp(DirectoryOperation.Operation op) {
+    private void processIncomingOp(DirectoryOperation.Operation op) {
         if (op.operationType().equals(DirectoryOperation.OperationType.UPDATE_FILE)) {
             var opState = json.fromJson(op.data(), JavaDirectoryState.FileState.class);
             var opRecord = OperationRecord.fromOperation(op, opState);
             synchronized (currentVersion) {
-                if (currentVersion.compareTo(op.version()) <= 0) // op succeeds current version
+                if (currentVersion.compareTo(op.version()) <= 0) { // op succeeds current version
                     currentVersion.set(op.version());
+                    currentVersion.notifyAll();
+                }
                  else { // check if applied operations overwrite
                     var modifying = opState.fileId();
                     var intermediateOperations =
@@ -164,12 +169,12 @@ public class JavaDirectorySynchronizer implements Directory, RecordProcessor {
      *
      * @param state the file state to propagate
      */
-    private void propagateState(JavaDirectoryState.FileState state) {
-        var op = newOperation(DirectoryOperation.OperationType.UPDATE_FILE, json.toJson(state));
-        appliedOperations.add(OperationRecord.fromOperation(op, state));
-        Log.info("Propagated operation %s".formatted(op.toRecord()));
-        publisher.publish(op.toRecord());
-        Log.info("Propagated operation %s".formatted(op.toRecord()));
+    private synchronized void propagateState(JavaDirectoryState.FileState state) {
+            var op = newOperation(DirectoryOperation.OperationType.UPDATE_FILE, json.toJson(state));
+            appliedOperations.add(OperationRecord.fromOperation(op, state));
+            Log.info("Sending operation %s".formatted(op.toRecord()));
+            publisher.publish(op.toRecord());
+            Log.info("Propagated operation %s".formatted(op.toRecord()));
     }
 
     /**
@@ -182,6 +187,7 @@ public class JavaDirectorySynchronizer implements Directory, RecordProcessor {
     private DirectoryOperation.Operation newOperation(DirectoryOperation.OperationType operationType, String data) {
         synchronized (currentVersion) {
             this.currentVersion.next(this.replicaId);
+            currentVersion.notifyAll();
             return operationType.toOperation(this.currentVersion.copy(), data);
         }
     }
@@ -201,10 +207,10 @@ public class JavaDirectorySynchronizer implements Directory, RecordProcessor {
      * @param v          the version threshold
      * @param waitPeriod how long to wait
      */
-    public void waitForVersion(Version v, long waitPeriod) {
+    public synchronized void waitForVersion(Version v, long waitPeriod) {
         while (currentVersion.compareTo(v) < 0) {
             try {
-                this.wait(waitPeriod);
+                currentVersion.wait(waitPeriod);
             } catch (InterruptedException e) {
                 Log.info("Exception while waiting for version");
                 e.printStackTrace();
