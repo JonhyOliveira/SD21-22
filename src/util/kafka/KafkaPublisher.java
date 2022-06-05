@@ -4,74 +4,71 @@ import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.serialization.StringSerializer;
-import org.checkerframework.checker.units.qual.K;
 
 import java.util.Properties;
 import java.util.concurrent.ExecutionException;
 
 public class KafkaPublisher {
 
-	static public KafkaPublisher createPublisher(String brokers) {
-		Properties props = new Properties();
+    static public KafkaPublisher createPublisher(String brokers) {
+        Properties props = new Properties();
 
-		// Localização dos servidores kafka (lista de máquinas + porto)
-		props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, brokers);
+        // Localização dos servidores kafka (lista de máquinas + porto)
+        props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, brokers);
 
-		// Classe para serializar as chaves dos eventos (string)
-		props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
+        // Classe para serializar as chaves dos eventos (string)
+        props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
 
-		// Classe para serializar os valores dos eventos (string)
-		props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
+        // Classe para serializar os valores dos eventos (string)
+        props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
 
-		return new KafkaPublisher(new KafkaProducer<String, String>(props));
-	}
-	
-	private final KafkaProducer<String, String> producer;
+        return new KafkaPublisher(new KafkaProducer<String, String>(props));
+    }
 
-	private KafkaPublisher( KafkaProducer<String, String> producer) {
-		this.producer = producer;
-	}
+    private final KafkaProducer<String, String> producer;
 
-	public void close() {
-		this.producer.close();
-	}
+    private KafkaPublisher(KafkaProducer<String, String> producer) {
+        this.producer = producer;
+    }
 
-	public long publish(ProducerRecord<String, String> record) {
-		try {
-			long offset = producer.send(record).get().offset();
-			return offset;
-		} catch (ExecutionException | InterruptedException e) {
-			e.printStackTrace();
-		}
+    public void close() {
+        this.producer.close();
+    }
 
-		return -1;
-	}
+    public long publish(ProducerRecord<String, String> record) {
+        try {
+            long offset = producer.send(record).get().offset();
+            return offset;
+        } catch (ExecutionException | InterruptedException e) {
+            e.printStackTrace();
+        }
 
-	public long publish(String topic, String key, String value) {
-		try {
-			long offset = producer.send(new ProducerRecord<>(topic, key, value)).get().offset();
-			return offset;
-		} catch (ExecutionException | InterruptedException x) {
-			x.printStackTrace();
-		}
-		return -1;
-	}
-	
-	public long publish(String topic, String value) {
-		try {
-			long offset = producer.send(new ProducerRecord<>(topic, value)).get().offset();
-			return offset;
-		} catch (ExecutionException | InterruptedException x) {
-			x.printStackTrace();
-		}
-		return -1;
-	}
-	
-	
-	public static void main(String[] args) throws Exception {
+        return -1;
+    }
 
-		
-		
-		
-	}
+    public long publish(String topic, String key, String value) {
+        try {
+            long offset = producer.send(new ProducerRecord<>(topic, key, value)).get().offset();
+            return offset;
+        } catch (ExecutionException | InterruptedException x) {
+            x.printStackTrace();
+        }
+        return -1;
+    }
+
+    public long publish(String topic, String value) {
+        try {
+            long offset = producer.send(new ProducerRecord<>(topic, value)).get().offset();
+            return offset;
+        } catch (ExecutionException | InterruptedException x) {
+            x.printStackTrace();
+        }
+        return -1;
+    }
+
+
+    public static void main(String[] args) throws Exception {
+
+
+    }
 }

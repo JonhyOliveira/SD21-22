@@ -1,17 +1,12 @@
 package tp1.impl.servers.rest;
 
-import org.apache.kafka.common.utils.ConfigUtils;
 import org.glassfish.jersey.server.ResourceConfig;
-import org.pac4j.core.config.ConfigBuilder;
 import tp1.api.service.java.Files;
 import tp1.impl.servers.common.dropbox.util.Preserve;
-import tp1.impl.servers.rest.util.CustomLoggingFilter;
 import tp1.impl.servers.rest.util.GenericExceptionMapper;
 import util.Debug;
 import util.Token;
 
-import java.io.ObjectInputFilter;
-import java.lang.module.Configuration;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 

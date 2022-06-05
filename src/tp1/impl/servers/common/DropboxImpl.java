@@ -9,9 +9,12 @@ import tp1.api.service.java.Result;
 import tp1.impl.servers.common.dropbox.DropboxRestClient;
 import tp1.impl.servers.common.dropbox.util.Context;
 import tp1.impl.servers.common.dropbox.util.Preserve;
+import util.Json;
 import util.Token;
 
-import java.util.*;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Set;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.logging.Logger;
 
@@ -25,7 +28,7 @@ public class DropboxImpl implements Files {
 
     private static final String apiKey = "dlcfea3hujnjj3b";
     private static final String apiSecret = "6wifguey4f211u0";
-    private static final String accessTokenStr = "sl.BIxXHNOfxKm7obRid_xj1jl_DnTHaOj_96C_JO51Dul89EDYsFwFELTqCK16bXMVoDt6d_E0-x1EJADN85Y-f3fAAUagaMa7A8OPEIVWHnsIV7O8ltz_qGlPvhkV2gIbZHc4GX8";
+    private static final String accessTokenStr = "sl.BI_RuxZOykErn5oY6-qg9G-AR_tlSuBD0RoLukYeDeShpTNe20B7XvzrEdviymle8hV_3f8jQNeMWH-0QGb121_9rJ5fn6SHhq7yMYIVjLW9S-ZSFfcrYTor-IC7VhjraInwz3Y";
 
     private static final String DELIMITER = JavaFiles.DELIMITER;
     private static final String BASE_DIR = "/tp1-21_22-SD";
@@ -33,8 +36,8 @@ public class DropboxImpl implements Files {
     private final DropboxRestClient dropboxClient;
 
     // TODO isto devia de ser uma cache
-    private Set<String> files = new ConcurrentSkipListSet<>();
-    private Gson json = new Gson();
+    private final Set<String> files = new ConcurrentSkipListSet<>();
+    private final Gson json = Json.getInstance();
 
     public DropboxImpl() {
         var service = new ServiceBuilder(apiKey).apiSecret(apiSecret).build(DropboxApi20.INSTANCE);
@@ -55,8 +58,7 @@ public class DropboxImpl implements Files {
                     fetchedFileNames = res.value();
                 else if (res.errorValue() instanceof Collection) {
                     fetchedFileNames = res.errorValue();
-                }
-                else {
+                } else {
                     fetchedFileNames = Collections.emptyList();
                 }
 
@@ -111,8 +113,7 @@ public class DropboxImpl implements Files {
 
         if (res.isOK()) {
             return Result.ok();
-        }
-        else
+        } else
             return Result.error(res.error(), res.errorValue());
 
     }
@@ -136,6 +137,7 @@ public class DropboxImpl implements Files {
 
     /**
      * Checks if the token was created with the common secret
+     *
      * @param token the token with unknown validity
      * @return true if the token was created with the common secret and is valid, false otherwise
      */
@@ -145,14 +147,14 @@ public class DropboxImpl implements Files {
 
     /**
      * Checks the validity of a token and it's owner
+     *
      * @param userID the owner of the token
-     * @param token the token
+     * @param token  the token
      * @return true if the token is valid, false otherwise
      */
     private boolean verifyToken(String userID, String token) {
         return verifyToken(token);
     }
-
 
 
 }

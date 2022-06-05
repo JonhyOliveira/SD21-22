@@ -8,6 +8,7 @@ import tp1.api.service.java.Result;
 import tp1.impl.servers.common.dropbox.util.Context;
 import tp1.impl.servers.common.dropbox.util.Endpoints;
 import tp1.impl.servers.common.dropbox.util.Header;
+import util.Json;
 
 import java.io.IOException;
 import java.util.*;
@@ -15,14 +16,14 @@ import java.util.concurrent.ExecutionException;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
-public class DropboxRestClient  {
+public class DropboxRestClient {
 
-    private static final Gson json = new Gson();
+    private static final Gson json = Json.getInstance();
     private static final Logger Log = Logger.getLogger(DropboxRestClient.class.getName());
 
     private static final String DROPBOX_ARG_HEADER = "Dropbox-API-Arg";
 
-    private Context context;
+    private final Context context;
 
     public DropboxRestClient(Context context) {
         this.context = context;
@@ -32,7 +33,7 @@ public class DropboxRestClient  {
         var args = json.toJson(Map.of("path", directoryPath, "autorename", false));
 
         var request = handleRequest(Endpoints.CreateDirectory.createUnsignedRequest(args),
-                args,"creating directory");
+                args, "creating directory");
 
         if (request.isOK())
             return Result.ok();
@@ -74,13 +75,15 @@ public class DropboxRestClient  {
 
     }
 
-    private record ListFolderArgs( String path, boolean recursive, boolean include_media_info, boolean include_deleted, boolean include_has_explicit_shared_members, boolean include_mounted_folders) {
-        public ListFolderArgs( String path) {
-            this( path, false, false, false, false, false);
+    private record ListFolderArgs(String path, boolean recursive, boolean include_media_info, boolean include_deleted,
+                                  boolean include_has_explicit_shared_members, boolean include_mounted_folders) {
+        public ListFolderArgs(String path) {
+            this(path, false, false, false, false, false);
         }
     }
 
-    private record ListFolderContinueArgs(String cursor) { }
+    private record ListFolderContinueArgs(String cursor) {
+    }
 
     private static class ListFolderReturn {
 
@@ -140,8 +143,9 @@ public class DropboxRestClient  {
 
     /**
      * Sets a Dropbox file contents to some data
+     *
      * @param filePathOrID the path or ID of the file
-     * @param data the file data
+     * @param data         the file data
      * @return The file identifier or error information
      */
     public Result<String> uploadFile(String filePathOrID, byte[] data) {
@@ -160,6 +164,7 @@ public class DropboxRestClient  {
 
     /**
      * Deletes a Dropbox file or folder
+     *
      * @param pathOrID the path or ID of the thing to delete
      * @return null or error information
      */
@@ -185,8 +190,8 @@ public class DropboxRestClient  {
         var args = json.toJson(Map.of("path", filePathOrID));
 
         var request = handleRequestRaw(Endpoints.DownloadFile
-                .createUnsignedRequest(List.of(new Header(DROPBOX_ARG_HEADER, args),
-                        new Header(Header.CONTENT_TYPE, "application/octet-stream; charset=utf-8"))),
+                        .createUnsignedRequest(List.of(new Header(DROPBOX_ARG_HEADER, args),
+                                new Header(Header.CONTENT_TYPE, "application/octet-stream; charset=utf-8"))),
                 args, "getting file contents");
 
         if (request.isOK()) {
@@ -195,8 +200,7 @@ public class DropboxRestClient  {
             } catch (IOException e) {
                 return Result.error(Result.ErrorCode.INTERNAL_ERROR, "error reading byte stream");
             }
-        }
-        else {
+        } else {
             return Result.error(request.error(), request.errorValue());
         }
     }
@@ -231,8 +235,7 @@ public class DropboxRestClient  {
         if (error instanceof Throwable) {
             Log.warning("DROPBOX: Failed at %s: %s, Status: %s,\nReason: %s\n"
                     .formatted(action, args, errorResult.errorValue(), ((Throwable) error).getMessage()));
-        }
-        else {
+        } else {
             Log.warning("DROPBOX: Failed at %s: %s, Status: %s,\nReason: %s\n"
                     .formatted(action, args, errorResult.errorValue(), error));
             error = new Exception(error.toString());
@@ -247,11 +250,11 @@ public class DropboxRestClient  {
             Response r;
             r = context.executeRequest(request);
 
-                if (r.getCode() != 200) {
-                    return Result.error(Result.ErrorCode.INTERNAL_ERROR, r);
-                }
+            if (r.getCode() != 200) {
+                return Result.error(Result.ErrorCode.INTERNAL_ERROR, r);
+            }
 
-                return Result.ok(r);
+            return Result.ok(r);
 
         } catch (IOException | ExecutionException | InterruptedException e) {
             return Result.error(Result.ErrorCode.TIMEOUT, e);

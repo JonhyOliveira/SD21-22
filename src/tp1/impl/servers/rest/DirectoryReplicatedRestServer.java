@@ -1,7 +1,7 @@
 package tp1.impl.servers.rest;
 
 import org.glassfish.jersey.server.ResourceConfig;
-import tp1.impl.servers.common.ReplicationManager;
+import tp1.impl.servers.common.JavaDirectorySynchronizer;
 import tp1.impl.servers.rest.util.GenericExceptionMapper;
 import tp1.impl.servers.rest.util.VersionFilter;
 import util.Debug;
@@ -12,23 +12,25 @@ import java.util.logging.Level;
 
 public class DirectoryReplicatedRestServer extends DirectoryRestServer {
 
+    private static final String ELECTION_NAME = "directoryLeader";
+
     DirectoryReplicatedRestServer() {
         super();
     }
 
     @Override
     public void registerResources(ResourceConfig config) {
-        ReplicationManager repManager = ReplicationManager.getInstance();
+        JavaDirectorySynchronizer synchronizer = new JavaDirectorySynchronizer();
 
-        config.register( new DirectoryReplicatedResources(repManager) );
-        config.register( GenericExceptionMapper.class );
-        config.register( new VersionFilter(repManager) );
+        config.register(new DirectoryReplicatedResources(synchronizer));
+        config.register(GenericExceptionMapper.class);
+        config.register(new VersionFilter(synchronizer));
     }
 
     public static void main(String[] args) throws NoSuchAlgorithmException {
-        Debug.setLogLevel( Level.FINER, Debug.TP1);
+        Debug.setLogLevel(Level.FINER, Debug.TP1);
 
-        Token.set( args.length > 0 ? args[0] : "");
+        Token.set(args.length > 0 ? args[0] : "");
 
         new DirectoryReplicatedRestServer().start();
     }

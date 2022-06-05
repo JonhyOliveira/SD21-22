@@ -1,29 +1,29 @@
 package tp1.impl.servers.soap;
 
 
-import java.util.logging.Level;
-import java.util.logging.Logger;
-
 import tp1.api.service.java.Users;
 import util.Debug;
 import util.Token;
 
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
-public class UsersSoapServer extends AbstractSoapServer{
 
-	public static final int PORT = 13456;
-	private static Logger Log = Logger.getLogger(UsersSoapServer.class.getName());
+public class UsersSoapServer extends AbstractSoapServer {
 
-	UsersSoapServer() {
-		super(false, Log, Users.SERVICE_NAME, PORT, new SoapUsersWebService());
-	}
-	
-	public static void main(String[] args) throws Exception {
+    public static final int PORT = 13456;
+    private static final Logger Log = Logger.getLogger(UsersSoapServer.class.getName());
 
-		Debug.setLogLevel( Level.INFO, Debug.TP1);
-		Token.set( args.length > 0 ? args[0] : "");
-		
-		new UsersSoapServer().start();
-	}
+    UsersSoapServer() {
+        super(false, Log, Users.SERVICE_NAME, PORT, new SoapUsersWebService());
+    }
+
+    public static void main(String[] args) throws Exception {
+
+        Debug.setLogLevel(Level.INFO, Debug.TP1);
+        Token.set(args.length > 0 ? args[0] : "");
+
+        new UsersSoapServer().start();
+    }
 
 }
