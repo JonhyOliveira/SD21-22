@@ -40,4 +40,8 @@ public class TokenValidation {
 
         return true;
     }
+
+    public boolean isTokenSecret(String token) {
+        return (token.equals(Token.get()));
+    }
 }
