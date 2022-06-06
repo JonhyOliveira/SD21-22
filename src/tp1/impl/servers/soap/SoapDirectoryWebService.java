@@ -5,8 +5,11 @@ import tp1.api.FileInfo;
 import tp1.api.service.java.Directory;
 import tp1.api.service.java.Result.ErrorCode;
 import tp1.api.service.soap.DirectoryException;
+import tp1.api.service.soap.NotSupportedException;
 import tp1.api.service.soap.SoapDirectory;
 import tp1.impl.servers.common.JavaDirectory;
+import tp1.impl.servers.common.JavaDirectoryState;
+import tp1.impl.servers.common.replication.Version;
 
 import java.util.List;
 import java.util.logging.Logger;
@@ -85,5 +88,18 @@ public class SoapDirectoryWebService extends SoapWebService implements SoapDirec
                 String.format("SOAP deleteUserFiles: user = %s, password = %s, token = %s\n", userId, password, token));
 
         super.resultOrThrow(impl.deleteUserFiles(userId, password, token), DirectoryException::new);
+    }
+
+    @Override
+    public Version getVersion(String token) throws NotSupportedException {
+        Log.info(
+                String.format("SOAP getVersion: token = %s\n", token));
+
+        return super.resultOrThrow(impl.getVersion(token), NotSupportedException::new);
+    }
+
+    @Override
+    public void applyDelta(JavaDirectoryState.FileDelta delta, String token) throws NotSupportedException {
+        super.resultOrThrow(impl.applyDelta(delta, token), NotSupportedException::new);
     }
 }

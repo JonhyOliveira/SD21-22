@@ -20,8 +20,8 @@ public class DirectoryRestServer extends AbstractRestServer {
     }
 
     @Override
-    public void registerResources(ResourceConfig config) {
-        config.register(DirectoryResources.class);
+    public void registerResources(ResourceConfig config, String serviceURI) {
+        config.register(new DirectoryResources());
         config.register(GenericExceptionMapper.class);
 //		config.register(new VersionFilter(ReplicationManager.getInstance()));
 //		config.register( CustomLoggingFilter.class);

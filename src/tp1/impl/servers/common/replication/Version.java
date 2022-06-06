@@ -10,6 +10,17 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 public class Version implements Comparable<Version> {
 
+    /**
+     * Will be lower than any other version
+     */
+    public static final Version ZERO_VERSION = new Version(Long.MIN_VALUE, ""); // charAt = 0
+
+    /**
+     * Will be larger than any other version, make sure the first character of your
+     * replicaID has a charAt value lower than "~"
+     */
+    public static final Version FUTURE_VERSION = new Version(Long.MAX_VALUE, "~"); // chartAt = 126
+
     private final AtomicLong v;
     private final AtomicReference<String> replicaID;
 
@@ -44,20 +55,24 @@ public class Version implements Comparable<Version> {
     }
 
     /**
-     * The successor to this version
+     * Generates a successor to this version
      *
      * @param replicaID the replica to generate a successor for
      * @return the successor version
      */
-    public Version next(String replicaID) {
+    public synchronized Version next(String replicaID) {
         v.incrementAndGet();
         this.replicaID.set(replicaID);
         return this;
     }
 
+    /**
+     * Generates a successor to this version for the currently associated replica
+     *
+     * @return the successor replica
+     */
     public Version next() {
-        v.incrementAndGet();
-        return this;
+        return this.next(this.replicaID.get());
     }
 
     public void set(Version o) {

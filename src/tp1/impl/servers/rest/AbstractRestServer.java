@@ -26,7 +26,7 @@ public abstract class AbstractRestServer extends AbstractServer {
 
         ResourceConfig config = new ResourceConfig();
 
-        registerResources(config);
+        registerResources(config, serverURI);
 
         JdkHttpServerFactory.createHttpServer(URI.create(serverURI.replace(ip, INETADDR_ANY)), config, SSLContext.getDefault());
 
@@ -35,5 +35,5 @@ public abstract class AbstractRestServer extends AbstractServer {
         Discovery.getInstance().announce(service, serverURI);
     }
 
-    public abstract void registerResources(ResourceConfig config);
+    public abstract void registerResources(ResourceConfig config, String serviceURI);
 }

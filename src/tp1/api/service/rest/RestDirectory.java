@@ -3,6 +3,8 @@ package tp1.api.service.rest;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import tp1.api.FileInfo;
+import tp1.impl.servers.common.JavaDirectoryState;
+import tp1.impl.servers.common.replication.Version;
 
 import java.util.List;
 
@@ -17,6 +19,7 @@ public interface RestDirectory {
     String ACC_USER_ID = "accUserId";
     String USER_ID_SHARE = "userIdShare";
     String VERSION_HEADER = "X-DFS-Versao";
+    String SHARE = "share";
 
     /**
      * Write a new version of a file. If the file exists, its contents are
@@ -36,7 +39,7 @@ public interface RestDirectory {
     @Path("/{" + USER_ID + "}/{" + FILENAME + "}")
     @Consumes(MediaType.APPLICATION_OCTET_STREAM)
     @Produces(MediaType.APPLICATION_JSON)
-    FileInfo writeFile(@HeaderParam(VERSION_HEADER) String version, @PathParam(FILENAME) String filename, byte[] data, @PathParam(USER_ID) String userId,
+    FileInfo writeFile(@HeaderParam(VERSION_HEADER) Long version, @PathParam(FILENAME) String filename, byte[] data, @PathParam(USER_ID) String userId,
                        @QueryParam(PASSWORD) String password);
 
     /**
@@ -52,7 +55,7 @@ public interface RestDirectory {
      */
     @DELETE
     @Path("/{" + USER_ID + "}/{" + FILENAME + "}")
-    void deleteFile(@HeaderParam(VERSION_HEADER) String version, @PathParam(FILENAME) String filename, @PathParam(USER_ID) String userId,
+    void deleteFile(@HeaderParam(VERSION_HEADER) Long version, @PathParam(FILENAME) String filename, @PathParam(USER_ID) String userId,
                     @QueryParam(PASSWORD) String password);
 
     /**
@@ -72,8 +75,8 @@ public interface RestDirectory {
      * exist. 403 if the password is incorrect. 400 otherwise.
      */
     @POST
-    @Path("/{" + USER_ID + "}/{" + FILENAME + "}/share/{" + USER_ID_SHARE + "}")
-    void shareFile(String version, @PathParam(FILENAME) String filename, @PathParam(USER_ID) String userId,
+    @Path("/{" + USER_ID + "}/{" + FILENAME + "}/"+ SHARE + "/{" + USER_ID_SHARE + "}")
+    void shareFile(Long version, @PathParam(FILENAME) String filename, @PathParam(USER_ID) String userId,
                    @PathParam(USER_ID_SHARE) String userIdShare, @QueryParam(PASSWORD) String password);
 
     /**
@@ -93,8 +96,8 @@ public interface RestDirectory {
      * exist. 403 if the password is incorrect. 400 otherwise.
      */
     @DELETE
-    @Path("/{" + USER_ID + "}/{" + FILENAME + "}/share/{" + USER_ID_SHARE + "}")
-    void unshareFile(@HeaderParam(VERSION_HEADER) String version, @PathParam(FILENAME) String filename, @PathParam(USER_ID) String userId,
+    @Path("/{" + USER_ID + "}/{" + FILENAME + "}/"+ SHARE + "/{" + USER_ID_SHARE + "}")
+    void unshareFile(@HeaderParam(VERSION_HEADER) Long version, @PathParam(FILENAME) String filename, @PathParam(USER_ID) String userId,
                      @PathParam(USER_ID_SHARE) String userIdShare, @QueryParam(PASSWORD) String password);
 
     /**
@@ -116,7 +119,7 @@ public interface RestDirectory {
     @GET
     @Path("/{" + USER_ID + "}/{" + FILENAME + "}")
     @Produces(MediaType.APPLICATION_OCTET_STREAM)
-    byte[] getFile(@HeaderParam(VERSION_HEADER) String version, @PathParam(FILENAME) String filename, @PathParam(USER_ID) String userId,
+    byte[] getFile(@HeaderParam(VERSION_HEADER) Long version, @PathParam(FILENAME) String filename, @PathParam(USER_ID) String userId,
                    @QueryParam(ACC_USER_ID) String accUserId, @QueryParam(PASSWORD) String password);
 
     /**
@@ -132,10 +135,18 @@ public interface RestDirectory {
     @GET
     @Path("/{" + USER_ID + "}")
     @Produces(MediaType.APPLICATION_JSON)
-    List<FileInfo> lsFile(@HeaderParam(VERSION_HEADER) String version, @PathParam(USER_ID) String userId, @QueryParam(PASSWORD) String password);
+    List<FileInfo> lsFile(@HeaderParam(VERSION_HEADER) Long version, @PathParam(USER_ID) String userId, @QueryParam(PASSWORD) String password);
 
     @DELETE
-    @Path("{" + USER_ID + "}")
-    void deleteUserFiles(@HeaderParam(VERSION_HEADER) String version, @PathParam(USER_ID) String userId, @QueryParam(PASSWORD) @DefaultValue("") String password, @QueryParam(TOKEN) String token);
+    @Path("/{" + USER_ID + "}")
+    void deleteUserFiles(@HeaderParam(VERSION_HEADER) Long version, @PathParam(USER_ID) String userId, @QueryParam(PASSWORD) @DefaultValue("") String password, @QueryParam(TOKEN) String token);
+
+    @GET
+    @Produces(MediaType.APPLICATION_JSON)
+    Version getVersion(@QueryParam(TOKEN) String token);
+
+    @POST
+    @Consumes(MediaType.APPLICATION_JSON)
+    void applyDelta(JavaDirectoryState.FileDelta delta, @QueryParam(TOKEN) String token);
 
 }

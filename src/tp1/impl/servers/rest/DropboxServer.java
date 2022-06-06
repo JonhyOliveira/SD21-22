@@ -22,7 +22,7 @@ public class DropboxServer extends AbstractRestServer {
     }
 
     @Override
-    public void registerResources(ResourceConfig config) {
+    public void registerResources(ResourceConfig config, String serviceURI) {
         config.register(DropboxResources.class);
         config.register(GenericExceptionMapper.class);
 //      config.register(CustomLoggingFilter.class);

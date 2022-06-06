@@ -15,7 +15,6 @@ import tp1.impl.clients.soap.SoapUsersClient;
 
 public class Clients {
 
-    @Deprecated(forRemoval = true)
     public static final ClientFactory<Directory> DirectoryClients = new ClientFactory<>(
             Directory.SERVICE_NAME,
             (u) -> new RetryDirectoryClient(new RestDirectoryClient(u)),

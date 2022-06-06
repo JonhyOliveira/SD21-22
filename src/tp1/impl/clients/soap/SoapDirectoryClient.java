@@ -5,6 +5,8 @@ import tp1.api.FileInfo;
 import tp1.api.service.java.Directory;
 import tp1.api.service.java.Result;
 import tp1.api.service.soap.SoapDirectory;
+import tp1.impl.servers.common.JavaDirectoryState;
+import tp1.impl.servers.common.replication.Version;
 import util.Url;
 
 import javax.xml.namespace.QName;
@@ -54,5 +56,15 @@ public class SoapDirectoryClient extends SoapClient<SoapDirectory> implements Di
     @Override
     public Result<Void> deleteUserFiles(String userId, String password, String token) {
         return super.toJavaResult(() -> impl.deleteUserFiles(userId, password, token));
+    }
+
+    @Override
+    public Result<Version> getVersion(String token) {
+        return super.toJavaResult(() -> impl.getVersion(token));
+    }
+
+    @Override
+    public Result<Void> applyDelta(JavaDirectoryState.FileDelta delta, String token) {
+        return super.toJavaResult(() -> impl.applyDelta(delta, token));
     }
 }

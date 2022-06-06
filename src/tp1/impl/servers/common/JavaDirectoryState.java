@@ -88,9 +88,10 @@ public class JavaDirectoryState {
      * @param delta the file diff
      * @param leader unlocks leader-only actions
      * @param data data associated with this diff
-     * @return If leader and some action failed this diff will specify how to update the internal state to match that
+     * @return A FileDelta specifying how to undo actions that were unable to be executed. E.g. while waiting for the
+     * delta to be applied something changed.
      */
-    public FileDelta applyDiff(FileDelta delta, boolean leader, byte[] data) {
+    public FileDelta applyDelta(FileDelta delta, boolean leader, byte[] data) {
         var uf = userFiles.computeIfAbsent(delta.userId(), (k) -> new UserFiles());
         synchronized (uf) {
             var fileId = fileId(delta.filename(), delta.userId());
@@ -486,6 +487,19 @@ public class JavaDirectoryState {
 
         public List<String> removedShares() {
             return removedShares;
+        }
+
+        @Override
+        public String toString() {
+            return "FileDelta{" +
+                    "userId='" + userId + '\'' +
+                    ", filename='" + filename + '\'' +
+                    ", removed=" + removed +
+                    ", addedURIs=" + addedURIs +
+                    ", removedURIs=" + removedURIs +
+                    ", addedShares=" + addedShares +
+                    ", removedShares=" + removedShares +
+                    '}';
         }
     }
 

@@ -6,6 +6,8 @@ import tp1.api.service.java.Directory;
 import tp1.api.service.java.Result.ErrorCode;
 import tp1.api.service.rest.RestDirectory;
 import tp1.impl.servers.common.JavaDirectory;
+import tp1.impl.servers.common.JavaDirectoryState;
+import tp1.impl.servers.common.replication.Version;
 
 import java.util.List;
 import java.util.logging.Logger;
@@ -16,15 +18,15 @@ import static tp1.impl.clients.Clients.FilesClients;
 public class DirectoryResources extends RestResource implements RestDirectory {
     private static final Logger Log = Logger.getLogger(DirectoryResources.class.getName());
 
-    private static final String REST = "/rest/";
+    static final String REST = "/rest/";
 
-    Directory impl;
+    protected Directory impl;
 
     public DirectoryResources() {
         impl = new JavaDirectory();
     }
 
-    public FileInfo writeFile(String version, String filename, byte[] data, String userId, String password) {
+    public FileInfo writeFile(Long version, String filename, byte[] data, String userId, String password) {
         Log.info(String.format("REST writeFile: filename = %s, data.length = %d, userId = %s, password = %s \n",
                 filename, data.length, userId, password));
 
@@ -32,7 +34,7 @@ public class DirectoryResources extends RestResource implements RestDirectory {
     }
 
     @Override
-    public void deleteFile(String version, String filename, String userId, String password) {
+    public void deleteFile(Long version, String filename, String userId, String password) {
         Log.info(String.format("REST deleteFile: filename = %s, userId = %s, password =%s\n", filename, userId,
                 password));
 
@@ -40,7 +42,7 @@ public class DirectoryResources extends RestResource implements RestDirectory {
     }
 
     @Override
-    public void shareFile(String version, String filename, String userId, String userIdShare, String password) {
+    public void shareFile(Long version, String filename, String userId, String userIdShare, String password) {
         Log.info(String.format("REST shareFile: filename = %s, userId = %s, userIdShare = %s, password =%s\n", filename,
                 userId, userIdShare, password));
 
@@ -48,7 +50,7 @@ public class DirectoryResources extends RestResource implements RestDirectory {
     }
 
     @Override
-    public void unshareFile(String version, String filename, String userId, String userIdShare, String password) {
+    public void unshareFile(Long version, String filename, String userId, String userIdShare, String password) {
         Log.info(String.format("REST unshareFile: filename = %s, userId = %s, userIdShare = %s, password =%s\n",
                 filename, userId, userIdShare, password));
 
@@ -56,7 +58,7 @@ public class DirectoryResources extends RestResource implements RestDirectory {
     }
 
     @Override
-    public byte[] getFile(String version, String filename, String userId, String accUserId, String password) {
+    public byte[] getFile(Long version, String filename, String userId, String accUserId, String password) {
         Log.info(String.format("REST getFile: filename = %s, userId = %s, accUserId = %s, password =%s\n", filename,
                 userId, accUserId, password));
 
@@ -71,7 +73,7 @@ public class DirectoryResources extends RestResource implements RestDirectory {
     }
 
     @Override
-    public List<FileInfo> lsFile(String version, String userId, String password) {
+    public List<FileInfo> lsFile(Long version, String userId, String password) {
         long T0 = System.currentTimeMillis();
         try {
 
@@ -84,10 +86,20 @@ public class DirectoryResources extends RestResource implements RestDirectory {
     }
 
     @Override
-    public void deleteUserFiles(String version, String userId, String password, String token) {
+    public void deleteUserFiles(Long version, String userId, String password, String token) {
         Log.info(
                 String.format("REST deleteUserFiles: user = %s, password = %s, token = %s\n", userId, password, token));
 
         super.resultOrThrow(impl.deleteUserFiles(userId, password, token));
+    }
+
+    @Override
+    public Version getVersion(String token) {
+        throw new IllegalStateException("Not implemented");
+    }
+
+    @Override
+    public void applyDelta(JavaDirectoryState.FileDelta delta, String token) {
+        throw new IllegalStateException("Not implemented");
     }
 }

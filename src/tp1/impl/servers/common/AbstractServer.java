@@ -9,6 +9,7 @@ public abstract class AbstractServer {
     final protected int port;
     final protected Logger Log;
     final protected String service;
+    protected String serverURI;
 
     protected AbstractServer(Logger log, String service, int port) {
         this.service = service;

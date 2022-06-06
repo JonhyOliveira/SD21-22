@@ -8,14 +8,15 @@ import tp1.api.FileInfo;
 import tp1.api.service.java.Directory;
 import tp1.api.service.java.Result;
 import tp1.api.service.rest.RestDirectory;
+import tp1.impl.servers.common.JavaDirectoryState;
+import tp1.impl.servers.common.replication.Version;
 
 import java.net.URI;
 import java.util.List;
 
+import static tp1.api.service.rest.RestDirectory.SHARE;
+
 public class RestDirectoryClient extends RestClient implements Directory {
-
-
-    private static final String SHARE = "share";
 
     public RestDirectoryClient(URI serverUri) {
         super(serverUri, RestDirectory.PATH);
@@ -98,6 +99,26 @@ public class RestDirectoryClient extends RestClient implements Directory {
                 .queryParam(RestDirectory.TOKEN, token)
                 .request()
                 .delete();
+        return super.toJavaResult(r);
+    }
+
+    @Override
+    public Result<Version> getVersion(String token) {
+        Response r = target
+                .queryParam(RestDirectory.TOKEN, token)
+                .request()
+                .get();
+
+        return super.toJavaResult(r, new GenericType<Version>() {});
+    }
+
+    @Override
+    public Result<Void> applyDelta(JavaDirectoryState.FileDelta delta, String token) {
+        Response r = target
+                .queryParam(RestDirectory.TOKEN, token)
+                .request()
+                .post(Entity.entity(delta, MediaType.APPLICATION_JSON));
+
         return super.toJavaResult(r);
     }
 }
