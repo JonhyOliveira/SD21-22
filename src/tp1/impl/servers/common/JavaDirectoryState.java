@@ -12,8 +12,10 @@ import java.net.URI;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Logger;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -23,6 +25,8 @@ import static tp1.impl.clients.Clients.FilesClients;
 import static tp1.impl.clients.Clients.UsersClients;
 
 public class JavaDirectoryState {
+
+    static final int NUMBER_OF_BACKUPS = 2;
 
     static final long USER_CACHE_EXPIRATION = 3000;
 
@@ -45,7 +49,7 @@ public class JavaDirectoryState {
     final Map<String, UserFiles> userFiles = new ConcurrentHashMap<>();
     final Map<URI, FileCounts> fileCounts = new ConcurrentHashMap<>();
 
-    public Result<FileState> writeFile(String filename, byte[] data, String userId, String password) {
+    public Result<FileDelta> writeFile(String filename, String userId, String password) {
 
         if (badParam(filename) || badParam(userId))
             return error(BAD_REQUEST);
@@ -59,35 +63,127 @@ public class JavaDirectoryState {
             var fileId = fileId(filename, userId);
             var file = files.get(fileId);
             var info = file != null ? file.info() : new FileInfo();
-            URI uri1 = null, uri2 = null;
-            for (var uri : orderCandidateFileServers(file)) {
-                var result = FilesClients.get(uri).writeFile(fileId, data, Token.get());
-                if (result.isOK()) { // find first 2 distinct reachable uris (one main, one backup)
-                    if (uri1 == null)
-                        uri1 = uri;
-                    else if (!uri.equals(uri1)) {
-                        uri2 = uri;
-                        break;
-                    }
-                } else
-                    Log.info(String.format("Files.writeFile(...) to %s failed with: %s \n", uri, result));
-            }
-            if (uri1 != null) {
-                info.setOwner(userId);
-                info.setFilename(filename);
-                info.setFileURL(String.format("%s/files/%s", uri1, fileId));
-                files.put(fileId, file = new ExtendedFileInfo(uri1, uri2, fileId, info));
-                if (uf.owned().add(fileId)) {
-                    getFileCounts(file.primaryURI(), true).numFiles().incrementAndGet();
-                    if (file.backupURI() != null)
-                        getFileCounts(file.backupURI(), true).numFiles().incrementAndGet();
-                }
-                return ok(new FileState(file.fileId(), file));
-            }
+
+
+            var candidates = orderCandidateFileServers(file);
+
+            var newURIs = candidates.stream().limit(NUMBER_OF_BACKUPS).collect(Collectors.toList());
+            var oldURIs = file != null ? file.uris() : new LinkedList<URI>();
+
+            var addedURIs = newURIs.stream().filter(uri -> !oldURIs.contains(uri)).collect(Collectors.toList());
+            var removedURIs = oldURIs.stream().filter(uri -> !newURIs.contains(uri)).collect(Collectors.toList());
+
+            if (addedURIs.size() > 0 || removedURIs.size() > 0)
+                return ok(new FileDelta(userId, filename, false, addedURIs, removedURIs, null, null));
+            else if (newURIs.size() > 0)
+                return ok();
+            else
+                return error(BAD_REQUEST); // no servers available
         }
 
-        return error(BAD_REQUEST);
+    }
 
+    /**
+     * Applies a file diff
+     * @param delta the file diff
+     * @param leader unlocks leader-only actions
+     * @param data data associated with this diff
+     * @return If leader and some action failed this diff will specify how to update the internal state to match that
+     */
+    public FileDelta applyDiff(FileDelta delta, boolean leader, byte[] data) {
+        var uf = userFiles.computeIfAbsent(delta.userId(), (k) -> new UserFiles());
+        synchronized (uf) {
+            var fileId = fileId(delta.filename(), delta.userId());
+
+            if (delta.removed()) { // remove file
+                // remove it
+                var info = files.remove(fileId);
+
+                // remove from user
+                uf.owned().remove(fileId);
+
+                // remove from shares
+                this.removeSharesOfFile(info);
+
+                // set file counts
+                info.uris().forEach(u -> getFileCounts(u, false).numFiles().decrementAndGet());
+
+                /* if (leader) TODO garbage collect (tell files servers that file was deleted) */
+
+            }
+            else {
+                var xFile = files.get(fileId);
+                if (xFile == null) {
+                    xFile = new ExtendedFileInfo();
+                    xFile.fileId = fileId;
+                    xFile.info = new FileInfo();
+                    xFile.uris = new ConcurrentSkipListSet<>();
+                }
+                var info = xFile.info();
+
+                // set new owner and file name
+                info.setOwner(delta.userId());
+                info.setFilename(delta.filename());
+
+                var file = xFile; // needs to be final for use in lambda
+
+                // set uris
+                List<URI> failedAdds = new LinkedList<>();
+                delta.addedURIs().forEach(u -> {
+                    if (file.uris.add(u))
+                        getFileCounts(u, true).numFiles().incrementAndGet();
+                    if (leader) {
+                        var res = FilesClients.get(u).writeFile(fileId, data, Token.get());
+                        if (!res.isOK()) {
+                            Log.warning("Failed at writing file to url %s. Status code: %s\nReason: %s"
+                                    .formatted(u, res.error(), res.errorValue()));
+                            failedAdds.add(u);
+                        }
+                    }
+                });
+                delta.removedURIs().forEach(u -> {
+                    if (file.uris.remove(u))
+                        getFileCounts(u, false).numFiles().decrementAndGet();
+                });
+                /* if (!delta.removedURIs().isEmpty() && leader) TODO garbage collect (tell files server new URI list) */
+
+
+                // add shares
+                delta.addedShares().forEach(s -> {
+                    var share_uf = userFiles.computeIfAbsent(s, (k) -> new UserFiles());
+                    synchronized (share_uf) {
+                        share_uf.shared().add(fileId);
+                        file.info().getSharedWith().add(s);
+                    }
+                });
+
+                delta.removedShares().forEach(s -> {
+                    var share_uf = userFiles.computeIfAbsent(s, (k) -> new UserFiles());
+                    synchronized (share_uf) {
+                        share_uf.shared().remove(fileId);
+                        file.info().getSharedWith().remove(s);
+                    }
+                });
+
+                if (!failedAdds.isEmpty())
+                    return new FileDelta(delta.userId(), delta.filename(), false, null, failedAdds, null, null);
+            }
+            return null;
+        }
+    }
+
+    public String getBestMatchURI(String userId, String filename) {
+        synchronized (userFiles.get(userId)) {
+            var fileId = fileId(filename, userId);
+
+            var bestMatch = files.get(fileId).uris()
+                    .stream()
+                    .filter(FilesClients.all()::contains)
+                    .findFirst().get();
+
+            return String.format("%s/files/%s", bestMatch, fileId);
+
+        }
     }
 
     /**
@@ -96,7 +192,7 @@ public class JavaDirectoryState {
      * @param password the password of the owner of the file
      * @return a pair that signifies the new state of the file
      */
-    public Result<FileState> deleteFile(String filename, String userId, String password) {
+    public Result<FileDelta> deleteFile(String filename, String userId, String password) {
         if (badParam(filename) || badParam(userId))
             return error(BAD_REQUEST);
 
@@ -110,11 +206,10 @@ public class JavaDirectoryState {
         if (!user.isOK())
             return error(user.error());
 
-        deleteFile(userId, fileId);
-        return ok(new FileState(fileId, null));
+        return ok(new FileDelta(userId, filename, true, null, null, null, null));
     }
 
-    public Result<FileState> shareFile(String filename, String userId, String userIdShare, String password) {
+    public Result<FileDelta> shareFile(String filename, String userId, String userIdShare, String password) {
         if (badParam(filename) || badParam(userId) || badParam(userIdShare))
             return error(BAD_REQUEST);
 
@@ -128,11 +223,10 @@ public class JavaDirectoryState {
         if (!user.isOK())
             return error(user.error());
 
-        shareFileWith(filename, userId, userIdShare);
-        return ok(new FileState(fileId, file));
+        return ok(new FileDelta(userId, filename, false, null, null, List.of(userIdShare), null));
     }
 
-    public Result<FileState> unshareFile(String filename, String userId, String userIdShare, String password) {
+    public Result<FileDelta> unshareFile(String filename, String userId, String userIdShare, String password) {
         if (badParam(filename) || badParam(userId) || badParam(userIdShare))
             return error(BAD_REQUEST);
 
@@ -146,9 +240,7 @@ public class JavaDirectoryState {
         if (!user.isOK())
             return error(user.error());
 
-        unsharedFileWith(filename, userId, userIdShare);
-
-        return ok(new FileState(fileId, file));
+        return ok(new FileDelta(userId, filename, false, null, null, null, List.of(userIdShare)));
     }
 
     public Result<byte[]> getFile(String filename, String userId, String accUserId, String password) {
@@ -167,16 +259,7 @@ public class JavaDirectoryState {
         if (!file.info().hasAccess(accUserId))
             return error(FORBIDDEN);
 
-        if (!FilesClients.all().contains(file.primaryURI())) {
-            if (!FilesClients.all().contains(file.backupURI())) {
-                Log.fine("Neither URIs are responsive. Uh oh.");
-                return error(NOT_FOUND);
-            }
-            Log.fine("Primary URI %s declared unresponsive. Switching 2 backup: %s".formatted(file.primaryURI(), file.backupURI()));
-            file.switch2Backup();
-        }
-
-        return redirect(file.info().getFileURL());
+        return redirect(getBestMatchURI(userId, filename));
     }
 
     public Result<List<FileInfo>> lsFile(String userId, String password) {
@@ -213,8 +296,8 @@ public class JavaDirectoryState {
         }
     }
 
-    public Result<List<FileState>> deleteUserFiles(String userId) {
-        List<FileState> states = new LinkedList<>();
+    public Result<List<FileDelta>> deleteUserFiles(String userId) {
+        List<FileDelta> deltas = new LinkedList<>();
 
         var uf = userFiles.get(userId);
         synchronized (uf) {
@@ -223,12 +306,11 @@ public class JavaDirectoryState {
             var fileIds = userFiles.remove(userId);
             if (fileIds != null)
                 for (var id : fileIds.owned()) {
-                    deleteFile(userId, id);
-                    states.add(new FileState(id, null));
+                    deltas.add(new FileDelta(id, true, null, null, null, null));
                 }
         }
 
-        return Result.ok(states);
+        return Result.ok(deltas);
     }
 
     public void invalidateUser(String userId) {
@@ -240,126 +322,22 @@ public class JavaDirectoryState {
             userFiles.getOrDefault(userId, new UserFiles()).shared().remove(file.fileId());
     }
 
-    /**
-     * Applies an atomic change to a file
-     *
-     * @param fileId   the file being changed
-     * @param fileInfo the information related to the file being changed
-     * @return true if the operation is valid, false otherwise
-     */
-    public boolean setFileAtomic(String fileId, ExtendedFileInfo fileInfo) {
-        if (!fileId.equals(fileInfo.fileId()))
-            return false;
-
-        var userId = fileInfo.info().getOwner();
-
-        var uf = userFiles.computeIfAbsent(userId, (k) -> new UserFiles());
-        synchronized (uf) {
-            var file = files.get(fileId); // current fileInfo
-
-            // if we had a previous version, delete it
-            if (file != null) {
-                // remove it
-                var info = files.remove(fileId);
-
-                // remove from user
-                uf.owned().remove(fileId);
-
-                // remove from shares
-                this.removeSharesOfFile(info);
-
-                // set file counts
-                if (info.primaryURI() != null)
-                    getFileCounts(info.primaryURI(), false).numFiles().decrementAndGet();
-                if (info.backupURI() != null)
-                    getFileCounts(info.backupURI(), false).numFiles().decrementAndGet();
-
-            }
-
-            // now we can start from scratch
-            if (fileInfo != null) {
-                var info = fileInfo.info();
-                file = fileInfo;
-
-                // add it
-                files.put(fileId, fileInfo);
-
-                // add to user
-                uf.owned().add(fileId);
-
-                // add shares
-                info.getSharedWith().forEach(s -> {
-                    shareFileWith(info.getFilename(), info.getOwner(), s);
-                });
-
-                // set file counts
-                if (file.primaryURI() != null)
-                    getFileCounts(file.primaryURI(), true).numFiles().incrementAndGet();
-                if (file.backupURI() != null)
-                    getFileCounts(file.backupURI(), true).numFiles().incrementAndGet();
-            }
-
-        }
-        return true;
-    }
-
-    // TODO operations
-
-    protected void deleteFile(String userId, String fileId) {
-        var uf = userFiles.computeIfAbsent(userId, (k) -> new UserFiles());
-        synchronized (uf) {
-
-            // remove it
-            var info = files.remove(fileId);
-
-            // remove from user
-            uf.owned().remove(fileId);
-
-            // remove from shares
-            this.removeSharesOfFile(info);
-
-            // set file counts
-            if (info.primaryURI() != null)
-                getFileCounts(info.primaryURI(), false).numFiles().decrementAndGet();
-            if (info.backupURI() != null)
-                getFileCounts(info.backupURI(), false).numFiles().decrementAndGet();
-        }
-
-    }
-
-    // TODO
-    public void shareFileWith(String filename, String userId, String userIdShare) {
-        var fileId = fileId(filename, userId);
-        var file = files.get(fileId);
-
-        var uf = userFiles.computeIfAbsent(userIdShare, (k) -> new UserFiles());
-        synchronized (uf) {
-            uf.shared().add(fileId);
-            file.info().getSharedWith().add(userIdShare);
-        }
-    }
-
-    // TODO
-    public void unsharedFileWith(String filename, String userId, String userIdShare) {
-        var fileId = fileId(filename, userId);
-        var file = files.get(fileId);
-
-        var uf = userFiles.computeIfAbsent(userIdShare, (k) -> new UserFiles());
-        synchronized (uf) {
-            uf.shared().remove(fileId);
-            file.info().getSharedWith().remove(userIdShare);
-        }
-    }
-
     protected Queue<URI> orderCandidateFileServers(ExtendedFileInfo file) {
         int MAX_SIZE = 4;
         Queue<URI> result = new ArrayDeque<>();
+        List<URI> reachableServers = FilesClients.all();
 
         if (file != null) {
-            result.add(file.primaryURI());
-            if (file.backupURI() != null)
-                result.add(file.backupURI());
+            file.uris().stream()
+                    .filter(u -> !result.contains(u))
+                    .filter(reachableServers::contains)
+                    .map(u -> getFileCounts(u, false))
+                    .sorted(FileCounts::ascending)
+                    .limit(MAX_SIZE)
+                    .map(FileCounts::uri)
+                    .forEach(result::add);
         }
+
         FilesClients.all()
                 .stream()
                 .filter(u -> !result.contains(u))
@@ -386,38 +364,26 @@ public class JavaDirectoryState {
 
     static class ExtendedFileInfo {
 
-        private final String fileId;
-        private URI primaryURI, backupURI;
-        private final FileInfo info;
+        private String fileId;
+        private Set<URI> uris;
+        private FileInfo info;
 
-        ExtendedFileInfo(URI primaryURI, URI backupURI, String fileId, FileInfo info) {
-            this.primaryURI = primaryURI;
-            this.backupURI = backupURI;
-            this.fileId = fileId;
-            this.info = info;
+        private int c = 0;
+
+        public ExtendedFileInfo() {
+
         }
 
         public String fileId() {
             return fileId;
         }
 
-        public URI primaryURI() {
-            return primaryURI;
-        }
-
-        public URI backupURI() {
-            return backupURI;
-        }
-
         public FileInfo info() {
             return info;
         }
 
-        public void switch2Backup() {
-            var temp = primaryURI;
-            primaryURI = backupURI;
-            backupURI = temp;
-            info.setFileURL(String.format("%s/files/%s", primaryURI, fileId));
+        public List<URI> uris() {
+            return List.copyOf(uris);
         }
 
     }
@@ -440,9 +406,86 @@ public class JavaDirectoryState {
     }
 
     static record UserInfo(String userId, String password) {
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+
+            UserInfo userInfo = (UserInfo) o;
+
+            return Objects.equals(userId, userInfo.userId);
+        }
+
+        @Override
+        public int hashCode() {
+            return userId != null ? userId.hashCode() : 0;
+        }
     }
 
-    static record FileState(String fileId, ExtendedFileInfo fileInfo) {
+    public static class FileDelta {
+
+        private String userId, filename;
+        private boolean removed;
+        private List<URI> addedURIs, removedURIs;
+        private List<String> addedShares, removedShares;
+
+        /**
+         *
+         * @param fileId must be in the format userId$$$filename
+         * @param removed
+         * @param addedURIs
+         * @param removedURIs
+         * @param addedShares
+         * @param removedShares
+         */
+        public FileDelta(String fileId, boolean removed, List<URI> addedURIs, List<URI> removedURIs,
+                         List<String> addedShares, List<String> removedShares) {
+            this(fileId.split(Pattern.quote(JavaFiles.DELIMITER))[0], fileId.split(Pattern.quote(JavaFiles.DELIMITER))[0],
+                    removed, addedURIs, removedURIs, addedShares, removedShares);
+        }
+
+        public FileDelta(String userId, String filename, boolean removed, List<URI> addedURIs, List<URI> removedURIs,
+                         List<String> addedShares, List<String> removedShares) {
+            this.userId = userId;
+            this.filename = filename;
+            this.removed = removed;
+            this.addedURIs = addedURIs;
+            this.removedURIs = removedURIs;
+            this.addedShares = addedShares;
+            this.removedShares = removedShares;
+        }
+
+        public String userId() {
+            return userId;
+        }
+
+        public String filename() {
+            return filename;
+        }
+
+        public boolean removed() {
+            return removed;
+        }
+
+        public List<URI> addedURIs() {
+            return addedURIs;
+        }
+
+        public List<URI> removedURIs() {
+            return removedURIs;
+        }
+
+        public List<String> addedShares() {
+            return addedShares;
+        }
+
+        public List<String> removedShares() {
+            return removedShares;
+        }
+    }
+
+    public static record FileState(String fileId, ExtendedFileInfo fileInfo) {
 
         public boolean conflictsWith(FileState o) {
             if (this == o) return true;
@@ -451,9 +494,6 @@ public class JavaDirectoryState {
             return fileId.equals(o.fileId);
         }
 
-        public FileState dummy() {
-            return new FileState(fileId, null);
-        }
     }
 
 }
