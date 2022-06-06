@@ -1,9 +1,8 @@
 package tp1.impl.servers.common;
 
+import static tp1.api.service.java.Result.ErrorCode.*;
 import static tp1.api.service.java.Result.error;
 import static tp1.api.service.java.Result.ok;
-import static tp1.api.service.java.Result.ErrorCode.INTERNAL_ERROR;
-import static tp1.api.service.java.Result.ErrorCode.NOT_FOUND;
 
 import java.io.File;
 import java.io.IOException;
@@ -12,6 +11,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.logging.Logger;
+import java.util.regex.Pattern;
 
 import org.apache.zookeeper.CreateMode;
 import tp1.api.service.java.Files;
@@ -25,8 +25,7 @@ public class JavaFiles implements Files {
 
 	final static Logger Log = Logger.getLogger(JavaFiles.class.getName());
 
-	//static final String DELIMITER = "$$$";
-	static final String DELIMITER = " ";
+	static final String DELIMITER = "$$$";
 	private static final String ROOT = "/tmp/";
 
 	List<Integer> tokensReceived = new ArrayList<>();
@@ -87,21 +86,38 @@ public class JavaFiles implements Files {
 	}
 
 	private boolean isTokenValid(String token, String access) {
-		String[] info = token.split(DELIMITER);
-		long expirationDate = Long.parseLong(info[2]);
-		int tokenId = Integer.parseInt(info[3]);
-		String hashedToken = info[5];
-		String tokenToCompare = Hash.of(info[0], info[2], Token.get());
-		if(tokensReceived.contains(tokenId))
-			return false;
-		if(!access.equals(info[4]))
-			return false;
-		if(System.currentTimeMillis() > expirationDate)
-			return false;
-		if(!tokenToCompare.equals(hashedToken))
-			return false;
+		String[] info = token.split(Pattern.quote(DELIMITER));
+		if (info.length > 1){
+			System.out.println("FIRST ENTER");
+			long expirationDate = Long.parseLong(info[2]);
+			int tokenId = Integer.parseInt(info[3]);
+			String hashedToken = info[5];
+			String fileId = info[0] + DELIMITER + info[1];
+			String tokenToCompare = Hash.of(fileId, info[2], Token.get());
+			if (tokensReceived.contains(tokenId))
+				return false;
+			System.out.println("FIRST ENTER");
+			if (!access.equals(info[4])) {
+				System.out.println(access);
+				System.out.println(info[4]);
+				return false;
+			}
+			System.out.println("FIRST ENTER");
+			if (System.currentTimeMillis() > expirationDate)
+				return false;
+			System.out.println("FIRST ENTER");
+			System.out.println(fileId);
+			if (!tokenToCompare.equals(hashedToken))
+				return false;
+			System.out.println("FIRST ENTER");
 
-		tokensReceived.add(tokenId);
+			tokensReceived.add(tokenId);
+		}
+		else {
+			System.out.println("SECOND ENTER");
+			return token.equals(Token.get());
+		}
+
 		return true;
 	}
 }

@@ -88,10 +88,10 @@ public class JavaDirectory implements Directory {
 			var info = file != null ? file.info() : new FileInfo();
 			URI uri1 = null, uri2 = null;
 			for (var uri :  orderCandidateFileServers(file)) {
-				//var result = FilesClients.get(uri).writeFile(fileId, data, Token.get());
 				counter++;
 				access = "wr";
-				var result = FilesClients.get(uri).writeFile(fileId, data, newToken(fileId));
+				var result = FilesClients.get(uri).writeFile(fileId, data, Token.get());
+				//var result = FilesClients.get(uri).writeFile(fileId, data, newToken(fileId));
 				if (result.isOK()) { // find first 2 distinct reachable uris (one main, one backup)
 					if (uri1 == null)
 						uri1 = uri;
@@ -144,10 +144,10 @@ public class JavaDirectory implements Directory {
 
 			executor.execute(() -> {
 				this.removeSharesOfFile(info);
-				// FilesClients.get(file.primaryURI()).deleteFile(fileId, password);
 				counter++;
-				access = "wr";
-				FilesClients.get(file.primaryURI()).deleteFile(fileId, newToken(fileId));
+				access = "dl";
+				FilesClients.get(file.primaryURI()).deleteFile(fileId, password);
+				//FilesClients.get(file.primaryURI()).deleteFile(fileId, newToken(fileId));
 			});
 			
 			getFileCounts(info.primaryURI(), false).numFiles().decrementAndGet();
@@ -226,8 +226,10 @@ public class JavaDirectory implements Directory {
 			Log.fine("Primary URI %s declared unresponsive. Switching 2 backup: %s".formatted(file.primaryURI(), file.backupURI()));
 			file.switch2Backup();
 		}
+		access = "get";
+		counter++;
 
-		return redirect( file.info().getFileURL() );
+		return redirect( file.info().getFileURL() + "?token=" + newToken(fileId));
 	}
 
 	@Override
