@@ -28,7 +28,8 @@ public class JavaFiles implements Files {
 	static final String DELIMITER = "$$$";
 	private static final String ROOT = "/tmp/";
 
-	List<Integer> tokensReceived = new ArrayList<>();
+	static final TokenValidation tokenVal = new TokenValidation();
+	public List<Integer> tokensReceived = new ArrayList<>();
 	
 	public JavaFiles() {
 		new File( ROOT ).mkdirs();
@@ -37,8 +38,7 @@ public class JavaFiles implements Files {
 	@Override
 	public Result<byte[]> getFile(String fileId, String token) {
 		if(!isTokenValid(token, "get"))
-			return error(NOT_FOUND);
-		System.out.println("GET FILE");
+			return error(FORBIDDEN);
 		fileId = fileId.replace( DELIMITER, "/");
 		byte[] data = IO.read( new File( ROOT + fileId ));
 		return data != null ? ok( data) : error( NOT_FOUND );
@@ -47,8 +47,7 @@ public class JavaFiles implements Files {
 	@Override
 	public Result<Void> deleteFile(String fileId, String token) {
 		if(!isTokenValid(token, "dl"))
-			return error(NOT_FOUND);
-		System.out.println("DELETE FILE");
+			return error(FORBIDDEN);
 		fileId = fileId.replace( DELIMITER, "/");
 		boolean res = IO.delete( new File( ROOT + fileId ));	
 		return res ? ok() : error( NOT_FOUND );
@@ -57,8 +56,7 @@ public class JavaFiles implements Files {
 	@Override
 	public Result<Void> writeFile(String fileId, byte[] data, String token) {
 		if(!isTokenValid(token, "wr"))
-			return error(NOT_FOUND);
-		System.out.println("WRITE FILE");
+			return error(FORBIDDEN);
 		fileId = fileId.replace( DELIMITER, "/");
 		File file = new File(ROOT + fileId);
 		file.getParentFile().mkdirs();
@@ -86,9 +84,10 @@ public class JavaFiles implements Files {
 	}
 
 	private boolean isTokenValid(String token, String access) {
+		return tokenVal.isTokenValid(token, access);
+		/*
 		String[] info = token.split(Pattern.quote(DELIMITER));
 		if (info.length > 1){
-			System.out.println("FIRST ENTER");
 			long expirationDate = Long.parseLong(info[2]);
 			int tokenId = Integer.parseInt(info[3]);
 			String hashedToken = info[5];
@@ -96,28 +95,19 @@ public class JavaFiles implements Files {
 			String tokenToCompare = Hash.of(fileId, info[2], Token.get());
 			if (tokensReceived.contains(tokenId))
 				return false;
-			System.out.println("FIRST ENTER");
-			if (!access.equals(info[4])) {
-				System.out.println(access);
-				System.out.println(info[4]);
+			if (!access.equals(info[4]))
 				return false;
-			}
-			System.out.println("FIRST ENTER");
 			if (System.currentTimeMillis() > expirationDate)
 				return false;
-			System.out.println("FIRST ENTER");
-			System.out.println(fileId);
 			if (!tokenToCompare.equals(hashedToken))
 				return false;
-			System.out.println("FIRST ENTER");
 
 			tokensReceived.add(tokenId);
 		}
-		else {
-			System.out.println("SECOND ENTER");
+		else
 			return token.equals(Token.get());
-		}
 
 		return true;
+		 */
 	}
 }
