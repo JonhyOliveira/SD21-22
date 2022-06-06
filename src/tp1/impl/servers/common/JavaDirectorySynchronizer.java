@@ -30,69 +30,34 @@ public class JavaDirectorySynchronizer implements Directory, RecordProcessor {
     private final JavaDirectoryState state = new JavaDirectoryState();
     final Gson json = Json.getInstance();
 
-    private final KafkaPublisher publisher;
-    private final KafkaSubscriber receiver;
+    private final KafkaPublisher publisher = KafkaPublisher.createPublisher("kafka:9092");
     private final String replicaId;
-    private final Version currentVersion;
-
-    private final SortedSet<OperationRecord> appliedOperations; // items are inserted from back to front (more recent are at the front)
+    private final Long currentVersion;
 
     public JavaDirectorySynchronizer() {
-        KafkaUtils.createTopic("kafka:9092", DirectoryOperation.NAMESPACE);
-        publisher = KafkaPublisher.createPublisher("kafka:9092");
-        receiver = KafkaSubscriber.createSubscriber("kafka:9092", List.of(DirectoryOperation.NAMESPACE), "earliest");
-        receiver.start(false, this);
 
-        this.appliedOperations = new ConcurrentSkipListSet<>(Comparator.comparing(OperationRecord::version));
 
-        replicaId = String.valueOf(Math.random());
-        /*var zookeeper = Zookeeper.getInstance();
-        zookeeper.createNode("/dirs", new byte[0], CreateMode.PERSISTENT);
-        replicaId = zookeeper.createNode("/dirs/dir_", new byte[0], CreateMode.EPHEMERAL_SEQUENTIAL);*/
-
-        currentVersion = new Version(-1L, ""); // will accept any change
-
-        Log.info("My name is %s. I am the law.".formatted(replicaId));
+        currentVersion = -1L;
     }
 
     @Override
     public Result<FileInfo> writeFile(String filename, byte[] data, String userId, String password) {
-        var res = state.writeFile(filename, data, userId, password);
-        if (res.isOK()) {
-            this.propagateState(res.value());
-            return Result.ok(res.value().fileInfo().info());
-        } else
-            return Result.error(res.error(), res.errorValue());
+
     }
 
     @Override
     public Result<Void> deleteFile(String filename, String userId, String password) {
-        var res = state.deleteFile(filename, userId, password);
-        if (res.isOK()) {
-            this.propagateState(res.value());
-            return Result.ok();
-        } else
-            return Result.error(res.error(), res.errorValue());
+
     }
 
     @Override
     public Result<Void> shareFile(String filename, String userId, String userIdShare, String password) {
-        var res = state.shareFile(filename, userId, userIdShare, password);
-        if (res.isOK()) {
-            this.propagateState(res.value());
-            return Result.ok();
-        } else
-            return Result.error(res.error(), res.errorValue());
+
     }
 
     @Override
     public Result<Void> unshareFile(String filename, String userId, String userIdShare, String password) {
-        var res = state.unshareFile(filename, userId, userIdShare, password);
-        if (res.isOK()) {
-            this.propagateState(res.value());
-            return Result.ok();
-        } else
-            return Result.error(res.error(), res.errorValue());
+
     }
 
     @Override
