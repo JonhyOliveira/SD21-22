@@ -430,6 +430,10 @@ public class JavaDirectoryState {
         private List<URI> addedURIs, removedURIs;
         private List<String> addedShares, removedShares;
 
+        public FileDelta() {
+
+        }
+
         /**
          *
          * @param fileId must be in the format userId$$$filename
@@ -483,17 +487,6 @@ public class JavaDirectoryState {
         public List<String> removedShares() {
             return removedShares;
         }
-    }
-
-    public static record FileState(String fileId, ExtendedFileInfo fileInfo) {
-
-        public boolean conflictsWith(FileState o) {
-            if (this == o) return true;
-            if (o == null) return false;
-
-            return fileId.equals(o.fileId);
-        }
-
     }
 
 }
