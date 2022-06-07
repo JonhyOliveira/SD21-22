@@ -2,9 +2,8 @@ package tp1.api.service.soap;
 
 import jakarta.jws.WebMethod;
 import jakarta.jws.WebService;
+import tp1.api.FileDelta;
 import tp1.api.FileInfo;
-import tp1.impl.servers.common.JavaDirectoryState;
-import tp1.impl.servers.common.replication.Version;
 
 import java.util.List;
 
@@ -38,9 +37,9 @@ public interface SoapDirectory {
     void deleteUserFiles(String userId, String password, String token) throws DirectoryException;
 
     @WebMethod
-    Version getVersion(String token) throws NotSupportedException;
+    String getVersion(String token) throws NotSupportedException;
 
     @WebMethod
-    void applyDelta(JavaDirectoryState.FileDelta delta, String token) throws NotSupportedException;
+    void applyDelta(String version, FileDelta delta, String token) throws NotSupportedException;
 
 }

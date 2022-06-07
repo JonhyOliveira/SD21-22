@@ -3,6 +3,7 @@ package tp1.impl.servers.common;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
+import tp1.api.FileDelta;
 import tp1.api.FileInfo;
 import tp1.api.User;
 import tp1.api.service.java.Result;
@@ -67,11 +68,11 @@ public class JavaDirectoryState {
 
             var candidates = orderCandidateFileServers(file);
 
-            var newURIs = candidates.stream().limit(NUMBER_OF_BACKUPS).collect(Collectors.toList());
-            var oldURIs = file != null ? file.uris() : new LinkedList<URI>();
+            var newURIs = candidates.stream().map(URI::toString).limit(NUMBER_OF_BACKUPS).collect(Collectors.toList());
+            var oldURIs = (file != null ? file.uris() : new LinkedList<URI>()).stream().map(Objects::toString).collect(Collectors.toList());
 
-            var addedURIs = newURIs.stream().filter(uri -> !oldURIs.contains(uri)).collect(Collectors.toList());
-            var removedURIs = oldURIs.stream().filter(uri -> !newURIs.contains(uri)).collect(Collectors.toList());
+            var addedURIs = newURIs.stream().filter(uri -> !oldURIs.contains(uri)).collect(Collectors.toSet());
+            var removedURIs = oldURIs.stream().filter(uri -> !newURIs.contains(uri)).collect(Collectors.toSet());
 
             if (addedURIs.size() > 0 || removedURIs.size() > 0)
                 return ok(new FileDelta(userId, filename, false, addedURIs, removedURIs, null, null));
@@ -91,86 +92,92 @@ public class JavaDirectoryState {
      * @return A FileDelta specifying how to undo actions that were unable to be executed. E.g. while waiting for the
      * delta to be applied something changed.
      */
-    public FileDelta applyDelta(FileDelta delta, boolean leader, byte[] data) {
-        var uf = userFiles.computeIfAbsent(delta.userId(), (k) -> new UserFiles());
-        synchronized (uf) {
-            var fileId = fileId(delta.filename(), delta.userId());
+    public synchronized FileDelta applyDelta(FileDelta delta, boolean leader, byte[] data) {
+        Log.info("Applying delta: %s".formatted(delta));
 
-            if (delta.removed()) { // remove file
-                // remove it
-                var info = files.remove(fileId);
+        var uf = userFiles.computeIfAbsent(delta.getUserId(), (k) -> new UserFiles());
+        var fileId = fileId(delta.getFilename(), delta.getUserId());
 
-                // remove from user
-                uf.owned().remove(fileId);
+        if (delta.isRemoved()) { // remove file
+            // remove it
+            var info = files.remove(fileId);
 
-                // remove from shares
-                this.removeSharesOfFile(info);
+            // remove from user
+            uf.owned().remove(fileId);
 
-                // set file counts
-                info.uris().forEach(u -> getFileCounts(u, false).numFiles().decrementAndGet());
+            // remove from shares
+            this.removeSharesOfFile(info);
 
-                /* if (leader) TODO garbage collect (tell files servers that file was deleted) */
+            // set file counts
+            info.uris().forEach(u -> getFileCounts(URI.create(u), false).numFiles().decrementAndGet());
 
-            }
-            else {
-                var xFile = files.get(fileId);
-                if (xFile == null) {
-                    xFile = new ExtendedFileInfo();
-                    xFile.fileId = fileId;
-                    xFile.info = new FileInfo();
-                    xFile.uris = new ConcurrentSkipListSet<>();
-                }
-                var info = xFile.info();
+            /* if (leader) TODO garbage collect (tell files servers that file was deleted) */
 
-                // set new owner and file name
-                info.setOwner(delta.userId());
-                info.setFilename(delta.filename());
-
-                var file = xFile; // needs to be final for use in lambda
-
-                // set uris
-                List<URI> failedAdds = new LinkedList<>();
-                delta.addedURIs().forEach(u -> {
-                    if (file.uris.add(u))
-                        getFileCounts(u, true).numFiles().incrementAndGet();
-                    if (leader) {
-                        var res = FilesClients.get(u).writeFile(fileId, data, Token.get());
-                        if (!res.isOK()) {
-                            Log.warning("Failed at writing file to url %s. Status code: %s\nReason: %s"
-                                    .formatted(u, res.error(), res.errorValue()));
-                            failedAdds.add(u);
-                        }
-                    }
-                });
-                delta.removedURIs().forEach(u -> {
-                    if (file.uris.remove(u))
-                        getFileCounts(u, false).numFiles().decrementAndGet();
-                });
-                /* if (!delta.removedURIs().isEmpty() && leader) TODO garbage collect (tell files server new URI list) */
-
-
-                // add shares
-                delta.addedShares().forEach(s -> {
-                    var share_uf = userFiles.computeIfAbsent(s, (k) -> new UserFiles());
-                    synchronized (share_uf) {
-                        share_uf.shared().add(fileId);
-                        file.info().getSharedWith().add(s);
-                    }
-                });
-
-                delta.removedShares().forEach(s -> {
-                    var share_uf = userFiles.computeIfAbsent(s, (k) -> new UserFiles());
-                    synchronized (share_uf) {
-                        share_uf.shared().remove(fileId);
-                        file.info().getSharedWith().remove(s);
-                    }
-                });
-
-                if (!failedAdds.isEmpty())
-                    return new FileDelta(delta.userId(), delta.filename(), false, null, failedAdds, null, null);
-            }
-            return null;
         }
+        else {
+            var file = files.computeIfAbsent(fileId, id -> {
+                var f = new ExtendedFileInfo();
+                f.fileId = fileId;
+                f.info = new FileInfo();
+                f.uris = new HashSet<>();
+                return f;
+            });
+            var info = file.info();
+
+            // set new owner and file name
+            info.setOwner(delta.getUserId());
+            info.setFilename(delta.getFilename());
+
+            // set uris
+            Set<String> failedAdds = new HashSet<>();
+            delta.getAddedURIs().forEach(u -> {
+                if (file.uris.add(u))
+                    getFileCounts(URI.create(u), true).numFiles().incrementAndGet();
+                if (leader) {
+                    var res = FilesClients.get(URI.create(u)).writeFile(fileId, data, Token.get());
+                    if (!res.isOK()) {
+                        Log.warning("Failed at writing file to url %s. Status code: %s\nReason: %s"
+                                .formatted(u, res.error(), res.errorValue()));
+                        failedAdds.add(u);
+                    }
+                }
+            });
+            delta.getRemovedURIs().forEach(u -> {
+                if (file.uris.remove(u)) {
+                    getFileCounts(URI.create(u), false).numFiles().decrementAndGet();
+                }
+            });
+            /* if (!delta.removedURIs().isEmpty() && leader) TODO garbage collect (tell files server new URI list) */
+
+
+            // add shares
+            delta.getAddedShares().forEach(s -> {
+                var share_uf = userFiles.computeIfAbsent(s, (k) -> new UserFiles());
+                synchronized (share_uf) {
+                    share_uf.shared().add(fileId);
+                    file.info().getSharedWith().add(s);
+                }
+            });
+
+            delta.getRemovedShares().forEach(s -> {
+                var share_uf = userFiles.computeIfAbsent(s, (k) -> new UserFiles());
+                synchronized (share_uf) {
+                    share_uf.shared().remove(fileId);
+                    file.info().getSharedWith().remove(s);
+                }
+            });
+
+            Log.fine("Final file: %s".formatted(file));
+            info.setFileURL(String.format("%s/files/%s", file.uris().stream().findFirst().orElse(""), fileId));
+            files.put(fileId, file);
+
+            uf.owned().add(fileId);
+
+            if (!failedAdds.isEmpty())
+                return new FileDelta(delta.getUserId(), delta.getFilename(), false, null, failedAdds, null, null);
+        }
+        return null;
+
     }
 
     public String getBestMatchURI(String userId, String filename) {
@@ -179,6 +186,7 @@ public class JavaDirectoryState {
 
             var bestMatch = files.get(fileId).uris()
                     .stream()
+                    .map(URI::create)
                     .filter(FilesClients.all()::contains)
                     .findFirst().get();
 
@@ -224,7 +232,7 @@ public class JavaDirectoryState {
         if (!user.isOK())
             return error(user.error());
 
-        return ok(new FileDelta(userId, filename, false, null, null, List.of(userIdShare), null));
+        return ok(new FileDelta(userId, filename, false, null, null, Set.of(userIdShare), null));
     }
 
     public Result<FileDelta> unshareFile(String filename, String userId, String userIdShare, String password) {
@@ -241,7 +249,7 @@ public class JavaDirectoryState {
         if (!user.isOK())
             return error(user.error());
 
-        return ok(new FileDelta(userId, filename, false, null, null, null, List.of(userIdShare)));
+        return ok(new FileDelta(userId, filename, false, null, null, null, Set.of(userIdShare)));
     }
 
     public Result<byte[]> getFile(String filename, String userId, String accUserId, String password) {
@@ -307,7 +315,8 @@ public class JavaDirectoryState {
             var fileIds = userFiles.remove(userId);
             if (fileIds != null)
                 for (var id : fileIds.owned()) {
-                    deltas.add(new FileDelta(id, true, null, null, null, null));
+                    String[] tokens = id.split(Pattern.quote(JavaFiles.DELIMITER));
+                    deltas.add(new FileDelta(tokens[0], tokens[1]));
                 }
         }
 
@@ -330,6 +339,7 @@ public class JavaDirectoryState {
 
         if (file != null) {
             file.uris().stream()
+                    .map(URI::create)
                     .filter(u -> !result.contains(u))
                     .filter(reachableServers::contains)
                     .map(u -> getFileCounts(u, false))
@@ -366,10 +376,8 @@ public class JavaDirectoryState {
     static class ExtendedFileInfo {
 
         private String fileId;
-        private Set<URI> uris;
+        private Set<String> uris;
         private FileInfo info;
-
-        private int c = 0;
 
         public ExtendedFileInfo() {
 
@@ -383,10 +391,18 @@ public class JavaDirectoryState {
             return info;
         }
 
-        public List<URI> uris() {
-            return List.copyOf(uris);
+        public Set<String> uris() {
+            return Set.copyOf(uris);
         }
 
+        @Override
+        public String toString() {
+            return "ExtendedFileInfo{" +
+                    "fileId='" + fileId + '\'' +
+                    ", uris=" + uris +
+                    ", info=" + info +
+                    '}';
+        }
     }
 
     static record UserFiles(Set<String> owned, Set<String> shared) {
@@ -407,100 +423,6 @@ public class JavaDirectoryState {
     }
 
     static record UserInfo(String userId, String password) {
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
-
-            UserInfo userInfo = (UserInfo) o;
-
-            return Objects.equals(userId, userInfo.userId);
-        }
-
-        @Override
-        public int hashCode() {
-            return userId != null ? userId.hashCode() : 0;
-        }
-    }
-
-    public static class FileDelta {
-
-        private String userId, filename;
-        private boolean removed;
-        private List<URI> addedURIs, removedURIs;
-        private List<String> addedShares, removedShares;
-
-        public FileDelta() {
-
-        }
-
-        /**
-         *
-         * @param fileId must be in the format userId$$$filename
-         * @param removed
-         * @param addedURIs
-         * @param removedURIs
-         * @param addedShares
-         * @param removedShares
-         */
-        public FileDelta(String fileId, boolean removed, List<URI> addedURIs, List<URI> removedURIs,
-                         List<String> addedShares, List<String> removedShares) {
-            this(fileId.split(Pattern.quote(JavaFiles.DELIMITER))[0], fileId.split(Pattern.quote(JavaFiles.DELIMITER))[0],
-                    removed, addedURIs, removedURIs, addedShares, removedShares);
-        }
-
-        public FileDelta(String userId, String filename, boolean removed, List<URI> addedURIs, List<URI> removedURIs,
-                         List<String> addedShares, List<String> removedShares) {
-            this.userId = userId;
-            this.filename = filename;
-            this.removed = removed;
-            this.addedURIs = addedURIs;
-            this.removedURIs = removedURIs;
-            this.addedShares = addedShares;
-            this.removedShares = removedShares;
-        }
-
-        public String userId() {
-            return userId;
-        }
-
-        public String filename() {
-            return filename;
-        }
-
-        public boolean removed() {
-            return removed;
-        }
-
-        public List<URI> addedURIs() {
-            return addedURIs;
-        }
-
-        public List<URI> removedURIs() {
-            return removedURIs;
-        }
-
-        public List<String> addedShares() {
-            return addedShares;
-        }
-
-        public List<String> removedShares() {
-            return removedShares;
-        }
-
-        @Override
-        public String toString() {
-            return "FileDelta{" +
-                    "userId='" + userId + '\'' +
-                    ", filename='" + filename + '\'' +
-                    ", removed=" + removed +
-                    ", addedURIs=" + addedURIs +
-                    ", removedURIs=" + removedURIs +
-                    ", addedShares=" + addedShares +
-                    ", removedShares=" + removedShares +
-                    '}';
-        }
     }
 
 }

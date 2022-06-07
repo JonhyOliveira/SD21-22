@@ -1,8 +1,7 @@
 package tp1.api.service.java;
 
+import tp1.api.FileDelta;
 import tp1.api.FileInfo;
-import tp1.impl.servers.common.JavaDirectoryState;
-import tp1.impl.servers.common.replication.Version;
 
 import java.util.List;
 
@@ -24,7 +23,7 @@ public interface Directory {
 
     Result<Void> deleteUserFiles(String userId, String password, String token);
 
-    Result<Version> getVersion(String token);
+    Result<String> getVersion(String token);
 
-    Result<Void> applyDelta(JavaDirectoryState.FileDelta delta, String token);
+    Result<Void> applyDelta(String version, String token, FileDelta delta);
 }

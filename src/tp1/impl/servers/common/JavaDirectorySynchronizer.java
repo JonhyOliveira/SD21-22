@@ -1,6 +1,8 @@
 package tp1.impl.servers.common;
 
 
+import com.google.gson.Gson;
+import tp1.api.FileDelta;
 import tp1.api.FileInfo;
 import tp1.api.service.java.Directory;
 import tp1.api.service.java.Result;
@@ -8,12 +10,16 @@ import tp1.impl.clients.rest.RestDirectoryURIFactory;
 import tp1.impl.servers.common.replication.LeaderElection;
 import tp1.impl.servers.common.replication.ReplicationManager;
 import tp1.impl.servers.common.replication.Version;
+import util.Json;
 import util.Token;
 
 import java.net.URI;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 import static tp1.api.service.java.Result.*;
 import static tp1.impl.clients.Clients.DirectoryClients;
@@ -25,6 +31,9 @@ public class JavaDirectorySynchronizer implements Directory {
 
     private final JavaDirectoryState state;
     private final ReplicationManager replicationManager;
+    private static Gson json = Json.getInstance();
+
+    private final Map<Version, FileDelta> executedOperations = new ConcurrentHashMap<>();
 
     public JavaDirectorySynchronizer(ReplicationManager replicationManager) {
         this.replicationManager = replicationManager;
@@ -34,41 +43,37 @@ public class JavaDirectorySynchronizer implements Directory {
     @Override
     public Result<FileInfo> writeFile(String filename, byte[] data, String userId, String password) {
 
-        if (replicationManager.election().amElected()) {
+        if (replicationManager.amLeader()) {
             var deltaResult = state.writeFile(filename, userId, password);
 
             if (!deltaResult.isOK())
                 return error(deltaResult.error(), deltaResult.errorValue());
 
             Log.info("Calculated delta: %s".formatted(deltaResult));
-            applyDelta(deltaResult.value(), (byte[]) null);
+            applyDelta(null, deltaResult.value(), data);
             Log.info("Done applying delta");
 
-            var uf = state.userFiles.get(userId);
-            synchronized (uf) {
-                var fileId = JavaDirectoryState.fileId(filename, userId);
-                return ok(state.files.get(fileId).info());
-            }
+            return ok(state.files.get(JavaDirectoryState.fileId(filename, userId)).info());
         }
         else {
             var leader = replicationManager.election().leader();
             var uri = new RestDirectoryURIFactory(leader.serviceURI())
                     .forWriteFile(filename, data, userId, password).toString();
 
-            Log.info("Redirecting to %s\nto leader %s".formatted(uri, leader));
+            Log.info("Redirecting to %s\nLeader: %s".formatted(uri, leader));
             return redirect(uri);
         }
     }
 
     @Override
     public Result<Void> deleteFile(String filename, String userId, String password) {
-        if (replicationManager.election().amElected()) {
+        if (replicationManager.amLeader()) {
             var deltaResult = state.deleteFile(filename, userId, password);
 
             if (!deltaResult.isOK())
                 return error(deltaResult.error(), deltaResult.errorValue());
 
-            applyDelta(deltaResult.value(), (byte[]) null);
+            applyDelta(null, deltaResult.value(), null);
 
             return ok();
         }
@@ -81,13 +86,13 @@ public class JavaDirectorySynchronizer implements Directory {
 
     @Override
     public Result<Void> shareFile(String filename, String userId, String userIdShare, String password) {
-        if (replicationManager.election().amElected()) {
+        if (replicationManager.amLeader()) {
             var deltaResult = state.shareFile(filename, userId, userIdShare, password);
 
             if (!deltaResult.isOK())
                 return error(deltaResult.error(), deltaResult.errorValue());
 
-            applyDelta(deltaResult.value(), (byte[]) null);
+            applyDelta(null, deltaResult.value(), null);
 
             return ok();
         }
@@ -100,13 +105,13 @@ public class JavaDirectorySynchronizer implements Directory {
 
     @Override
     public Result<Void> unshareFile(String filename, String userId, String userIdShare, String password) {
-        if (replicationManager.election().amElected()) {
+        if (replicationManager.amLeader()) {
             var deltaResult = state.unshareFile(filename, userId, userIdShare, password);
 
             if (!deltaResult.isOK())
                 return error(deltaResult.error(), deltaResult.errorValue());
 
-            applyDelta(deltaResult.value(), (byte[]) null);
+            applyDelta(null, deltaResult.value(), null);
 
             return ok();
         }
@@ -133,61 +138,78 @@ public class JavaDirectorySynchronizer implements Directory {
     }
 
     @Override
-    public Result<Version> getVersion(String token) {
-        return ok(replicationManager.version());
+    public Result<String> getVersion(String token) {
+        // TODO check token
+        return ok(json.toJson(replicationManager.version()));
     }
 
     @Override
-    public Result<Void> applyDelta(JavaDirectoryState.FileDelta delta, String token) {
-        if (replicationManager.election().amElected())
+    public Result<Void> applyDelta(String version, String token, FileDelta delta) {
+        if (replicationManager.amLeader())
             throw new IllegalStateException("How dare you?!"); // a leader should never receive this request
         else {
             // TODO check token
-            Log.info("Got delta");
-            applyDelta(delta, (byte[]) null);
+            Log.info("Got delta %s\nwith version %s".formatted(delta, version));
+            applyDelta(json.fromJson(version, Version.class), delta, null);
             return ok();
         }
     }
 
-    private synchronized JavaDirectoryState.FileDelta applyDelta(JavaDirectoryState.FileDelta delta, byte[] data) {
-        if (replicationManager.election().amElected()) {
+    private FileDelta applyDelta(Version version, FileDelta delta, byte[] data) {
+        FileDelta failDelta;
+        SequencedFileDelta sequencedDelta;
 
+        if (replicationManager.amLeader()) {
             CountDownLatch latch = new CountDownLatch(SUPPORTED_FAILS);
-            var sequencedDelta = new SequencedFileDelta(replicationManager.version().next(), latch, delta);
+            sequencedDelta = new SequencedFileDelta(replicationManager.version().next(replicationManager.replicaID()), latch, delta);
 
             // send delta to followers
-            replicationManager.election().followers()
+            var followersURIs = replicationManager.followers()
                     .stream()
-                    .map(LeaderElection.Node::serviceURI)
+                    .map(LeaderElection.Candidate::serviceURI)
+                    .collect(Collectors.toList());
+            if (followersURIs.size() < SUPPORTED_FAILS)
+                Log.severe("Not enough replicas to support service failure.");
+
+            Log.info("Sending delta %s to followers: %s".formatted(sequencedDelta.sequencingVersion(), followersURIs));
+
+            followersURIs
+                    .stream()
                     .map(this::getFollowerExecutor)
-                    .forEach(fExec -> fExec.submit(sequencedDelta));
+                    .forEach(fExec -> {
+                        fExec.submit(sequencedDelta);
+                    });
 
             try {
                 // wait for minimum of followers to respond
+                Log.finer("Waiting for followers to respond...");
                 latch.await();
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
-
-            // execute locally
-            return state.applyDelta(delta, true, data);
         }
         else {
-            JavaDirectoryState.FileDelta failDelta;
-            if ((failDelta = state.applyDelta(delta, false, null)) != null) // this should only update state, should never
-                throw new IllegalStateException("What did you do? What this?:\n%s".formatted(failDelta)); // ask other replicas to undo
-
-            return null;
+            sequencedDelta = new SequencedFileDelta(version, null, delta);
         }
+
+        failDelta = state.applyDelta(delta, true, data);
+
+        if (!replicationManager.amLeader() && failDelta != null) // followers should never ask other replicas to undo
+            throw new IllegalStateException("What did you do? What this? D: :\n%s".formatted(failDelta));
+
+        // everything went good, record delta
+        executedOperations.put(sequencedDelta.sequencingVersion(), sequencedDelta.deltaToExecute());
+        replicationManager.setVersion(sequencedDelta.sequencingVersion());
+        return failDelta;
     }
 
-    private FollowerExecutor getFollowerExecutor(URI serviceURI) {
-        return followers.computeIfAbsent(serviceURI, FollowerExecutor::new);
+    private FollowerExecutorThread getFollowerExecutor(URI serviceURI) {
+        return followers.computeIfAbsent(serviceURI, FollowerExecutorThread::new);
     }
 
-    private final Map<URI, FollowerExecutor> followers = new HashMap<>();
+    private final Map<URI, FollowerExecutorThread> followers = new HashMap<>();
 
-    record SequencedFileDelta(Version sequencingVersion, CountDownLatch done, JavaDirectoryState.FileDelta deltaToExecute) implements Comparable<SequencedFileDelta> {
+    record SequencedFileDelta(Version sequencingVersion, CountDownLatch done, FileDelta deltaToExecute) implements Comparable<SequencedFileDelta> {
 
         @Override
         public int compareTo(SequencedFileDelta o) {
@@ -196,9 +218,9 @@ public class JavaDirectorySynchronizer implements Directory {
 
     }
 
-    static abstract class SequencedDeltaApplier implements Runnable {
+    static abstract class SequencedDeltaApplierThread extends Thread {
 
-        private static final Logger Log = Logger.getLogger(SequencedDeltaApplier.class.getName());
+        private static final Logger Log = Logger.getLogger(SequencedDeltaApplierThread.class.getName());
 
         protected static final int WAIT_PERIOD = 100;
 
@@ -209,18 +231,15 @@ public class JavaDirectorySynchronizer implements Directory {
             for (;;) {
                 SequencedFileDelta deltaToExecute = toExecute.poll();
                 if (deltaToExecute == null) {
-                    synchronized (this) {
-                        try {
-                            this.wait(WAIT_PERIOD);
-                        } catch (InterruptedException e) {
-                            e.printStackTrace();
-                            return; // stop execution
-                        }
+                    try {
+                        Thread.sleep(WAIT_PERIOD);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                        return; // stop execution
                     }
                     continue;
                 }
 
-                Log.info("Applying delta sequence with %s".formatted(deltaToExecute.sequencingVersion()));
                 if (apply(deltaToExecute))
                     return;
             }
@@ -239,17 +258,19 @@ public class JavaDirectorySynchronizer implements Directory {
         protected abstract boolean apply(SequencedFileDelta delta);
     }
 
-    static class FollowerExecutor extends SequencedDeltaApplier {
+    static class FollowerExecutorThread extends SequencedDeltaApplierThread {
 
         private final URI serviceURI;
 
-        public FollowerExecutor(URI serviceURI) {
+        public FollowerExecutorThread(URI serviceURI) {
             this.serviceURI = serviceURI;
+            this.start();
         }
 
         @Override
         protected boolean apply(SequencedFileDelta delta) {
-            var res = DirectoryClients.get(serviceURI).applyDelta(delta.deltaToExecute(), Token.get());
+            Log.fine("Sending delta %s to %s".formatted(json.toJson(delta.sequencingVersion()), serviceURI));
+            var res = DirectoryClients.get(serviceURI).applyDelta(json.toJson(delta.sequencingVersion()), Token.get(), delta.deltaToExecute());
             if (res.isOK())
                 delta.done().countDown();
             else if (!res.error().equals(Result.ErrorCode.TIMEOUT)) {
@@ -259,11 +280,25 @@ public class JavaDirectorySynchronizer implements Directory {
                             What do?""")
                         .formatted(serviceURI, res.error(), res.errorValue()));
             }
-            else // Down or overloaded -> wait for it to come back
+            else {// Down or overloaded -> wait for it to come back
+                Log.fine("Got Timeout from %s".formatted(serviceURI));
                 return true;
+            }
 
             return false;
         }
+    }
+
+    record DeltaToApply(SequencedFileDelta delta, Collection<FollowerExecutorThread> executors) {
+
+        public void send() {
+            executors.forEach(e -> e.apply(delta));
+        }
+
+        public boolean isDone() {
+            return delta.done().getCount() <= 0;
+        }
+
     }
 
 }

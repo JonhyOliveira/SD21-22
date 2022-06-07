@@ -2,9 +2,8 @@ package tp1.api.service.rest;
 
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
+import tp1.api.FileDelta;
 import tp1.api.FileInfo;
-import tp1.impl.servers.common.JavaDirectoryState;
-import tp1.impl.servers.common.replication.Version;
 
 import java.util.List;
 
@@ -39,7 +38,7 @@ public interface RestDirectory {
     @Path("/{" + USER_ID + "}/{" + FILENAME + "}")
     @Consumes(MediaType.APPLICATION_OCTET_STREAM)
     @Produces(MediaType.APPLICATION_JSON)
-    FileInfo writeFile(@HeaderParam(VERSION_HEADER) Long version, @PathParam(FILENAME) String filename, byte[] data, @PathParam(USER_ID) String userId,
+    FileInfo writeFile(@HeaderParam(VERSION_HEADER) String version, @PathParam(FILENAME) String filename, byte[] data, @PathParam(USER_ID) String userId,
                        @QueryParam(PASSWORD) String password);
 
     /**
@@ -55,7 +54,7 @@ public interface RestDirectory {
      */
     @DELETE
     @Path("/{" + USER_ID + "}/{" + FILENAME + "}")
-    void deleteFile(@HeaderParam(VERSION_HEADER) Long version, @PathParam(FILENAME) String filename, @PathParam(USER_ID) String userId,
+    void deleteFile(@HeaderParam(VERSION_HEADER) String version, @PathParam(FILENAME) String filename, @PathParam(USER_ID) String userId,
                     @QueryParam(PASSWORD) String password);
 
     /**
@@ -76,7 +75,7 @@ public interface RestDirectory {
      */
     @POST
     @Path("/{" + USER_ID + "}/{" + FILENAME + "}/"+ SHARE + "/{" + USER_ID_SHARE + "}")
-    void shareFile(Long version, @PathParam(FILENAME) String filename, @PathParam(USER_ID) String userId,
+    void shareFile(@HeaderParam(VERSION_HEADER) String version, @PathParam(FILENAME) String filename, @PathParam(USER_ID) String userId,
                    @PathParam(USER_ID_SHARE) String userIdShare, @QueryParam(PASSWORD) String password);
 
     /**
@@ -97,7 +96,7 @@ public interface RestDirectory {
      */
     @DELETE
     @Path("/{" + USER_ID + "}/{" + FILENAME + "}/"+ SHARE + "/{" + USER_ID_SHARE + "}")
-    void unshareFile(@HeaderParam(VERSION_HEADER) Long version, @PathParam(FILENAME) String filename, @PathParam(USER_ID) String userId,
+    void unshareFile(@HeaderParam(VERSION_HEADER) String version, @PathParam(FILENAME) String filename, @PathParam(USER_ID) String userId,
                      @PathParam(USER_ID_SHARE) String userIdShare, @QueryParam(PASSWORD) String password);
 
     /**
@@ -119,7 +118,7 @@ public interface RestDirectory {
     @GET
     @Path("/{" + USER_ID + "}/{" + FILENAME + "}")
     @Produces(MediaType.APPLICATION_OCTET_STREAM)
-    byte[] getFile(@HeaderParam(VERSION_HEADER) Long version, @PathParam(FILENAME) String filename, @PathParam(USER_ID) String userId,
+    byte[] getFile(@HeaderParam(VERSION_HEADER) String version, @PathParam(FILENAME) String filename, @PathParam(USER_ID) String userId,
                    @QueryParam(ACC_USER_ID) String accUserId, @QueryParam(PASSWORD) String password);
 
     /**
@@ -135,18 +134,18 @@ public interface RestDirectory {
     @GET
     @Path("/{" + USER_ID + "}")
     @Produces(MediaType.APPLICATION_JSON)
-    List<FileInfo> lsFile(@HeaderParam(VERSION_HEADER) Long version, @PathParam(USER_ID) String userId, @QueryParam(PASSWORD) String password);
+    List<FileInfo> lsFile(@HeaderParam(VERSION_HEADER) String version, @PathParam(USER_ID) String userId, @QueryParam(PASSWORD) String password);
 
     @DELETE
     @Path("/{" + USER_ID + "}")
-    void deleteUserFiles(@HeaderParam(VERSION_HEADER) Long version, @PathParam(USER_ID) String userId, @QueryParam(PASSWORD) @DefaultValue("") String password, @QueryParam(TOKEN) String token);
+    void deleteUserFiles(@HeaderParam(VERSION_HEADER) String version, @PathParam(USER_ID) String userId, @QueryParam(PASSWORD) @DefaultValue("") String password, @QueryParam(TOKEN) String token);
 
     @GET
     @Produces(MediaType.APPLICATION_JSON)
-    Version getVersion(@QueryParam(TOKEN) String token);
+    String getVersion(@QueryParam(TOKEN) String token);
 
     @POST
     @Consumes(MediaType.APPLICATION_JSON)
-    void applyDelta(JavaDirectoryState.FileDelta delta, @QueryParam(TOKEN) String token);
+    void applyDelta(@HeaderParam(VERSION_HEADER) String version, @QueryParam(TOKEN) String token, FileDelta delta);
 
 }

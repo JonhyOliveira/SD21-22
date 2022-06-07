@@ -4,12 +4,13 @@ import jakarta.ws.rs.client.Entity;
 import jakarta.ws.rs.core.GenericType;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import tp1.api.FileDelta;
 import tp1.api.FileInfo;
 import tp1.api.service.java.Directory;
 import tp1.api.service.java.Result;
 import tp1.api.service.rest.RestDirectory;
-import tp1.impl.servers.common.JavaDirectoryState;
 import tp1.impl.servers.common.replication.Version;
+import util.Json;
 
 import java.net.URI;
 import java.util.List;
@@ -103,20 +104,21 @@ public class RestDirectoryClient extends RestClient implements Directory {
     }
 
     @Override
-    public Result<Version> getVersion(String token) {
+    public Result<String> getVersion(String token) {
         Response r = target
                 .queryParam(RestDirectory.TOKEN, token)
                 .request()
                 .get();
 
-        return super.toJavaResult(r, new GenericType<Version>() {});
+        return super.toJavaResult(r, new GenericType<String>() {});
     }
 
     @Override
-    public Result<Void> applyDelta(JavaDirectoryState.FileDelta delta, String token) {
+    public Result<Void> applyDelta(String version, String token, FileDelta delta) {
         Response r = target
                 .queryParam(RestDirectory.TOKEN, token)
                 .request()
+                .header(RestDirectory.VERSION_HEADER, version)
                 .post(Entity.entity(delta, MediaType.APPLICATION_JSON));
 
         return super.toJavaResult(r);

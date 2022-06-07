@@ -60,9 +60,11 @@ public class Zookeeper implements Watcher {
         }
     }
 
-    public List<String> getChildren(String path) {
+    public List<String> getChildren(String path) throws KeeperException {
         try {
             return client().getChildren(path, false);
+        } catch (KeeperException e) {
+            throw e;
         } catch (Exception x) {
             x.printStackTrace();
         }
@@ -97,7 +99,11 @@ public class Zookeeper implements Watcher {
         }
 
         zk.getChildren(root, (e) -> {
-            zk.getChildren(root).forEach(System.out::println);
+            try {
+                zk.getChildren(root).forEach(System.out::println);
+            } catch (KeeperException ex) {
+                ex.printStackTrace();
+            }
         });
 
         Thread.sleep(Integer.MAX_VALUE);

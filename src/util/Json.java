@@ -41,9 +41,9 @@ class VersionTypeAdapter extends TypeAdapter<Version> {
     public void write(JsonWriter jsonWriter, Version version) throws IOException {
         jsonWriter.beginObject()
                 .name(NAMES.version.name())
-                .value(version.v())
+                .value(version.getVersion())
                 .name(NAMES.replicaID.name())
-                .value(version.replicaID())
+                .value(version.getReplicaID())
         .endObject();
     }
 

@@ -14,6 +14,8 @@ public class RestResource {
      * matching the error code...
      */
     protected <T> T resultOrThrow(Result<T> result) {
+        System.err.println(result);
+
         if (result.isOK())
             return result.value();
         else {

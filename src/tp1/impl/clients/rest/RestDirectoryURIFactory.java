@@ -1,6 +1,7 @@
 package tp1.impl.clients.rest;
 
 import jakarta.ws.rs.core.UriBuilder;
+import tp1.api.FileDelta;
 import tp1.api.FileInfo;
 import tp1.api.service.java.Directory;
 import tp1.api.service.java.Result;
@@ -86,7 +87,7 @@ public class RestDirectoryURIFactory {
                 .build();
     }
 
-    public URI forSendDelta(JavaDirectoryState.FileDelta delta, String token) {
+    public URI forSendDelta(FileDelta delta, String token) {
         return UriBuilder.fromUri(this.serviceURI)
                 .queryParam(RestDirectory.TOKEN, token)
                 .build();

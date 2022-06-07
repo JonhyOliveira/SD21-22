@@ -21,8 +21,8 @@ public class Version implements Comparable<Version> {
      */
     public static final Version FUTURE_VERSION = new Version(Long.MAX_VALUE, "~"); // chartAt = 126
 
-    private final AtomicLong v;
-    private final AtomicReference<String> replicaID;
+    private AtomicLong v;
+    private AtomicReference<String> replicaID;
 
     public Version(AtomicLong v, AtomicReference<String> replicaID) {
         this.v = v;
@@ -33,12 +33,23 @@ public class Version implements Comparable<Version> {
         this(new AtomicLong(v), new AtomicReference<>(replicaID));
     }
 
-    public Long v() {
+    public Long getVersion() {
         return v.get();
     }
 
-    public String replicaID() {
+    public String getReplicaID() {
         return replicaID.get();
+    }
+
+    public void setVersion(Long v) {
+        if (this.v == null)
+            this.v = new AtomicLong(v);
+        else
+            this.v.set(v);
+    }
+
+    public void setReplicaID(AtomicReference<String> replicaID) {
+        this.replicaID = replicaID;
     }
 
     @Override
@@ -75,7 +86,7 @@ public class Version implements Comparable<Version> {
         return this.next(this.replicaID.get());
     }
 
-    public void set(Version o) {
+    public void setVersion(Version o) {
         replicaID.set(o.replicaID.get());
         v.set(o.v.get());
     }

@@ -1,12 +1,11 @@
 package tp1.impl.clients.soap;
 
 import jakarta.xml.ws.Service;
+import tp1.api.FileDelta;
 import tp1.api.FileInfo;
 import tp1.api.service.java.Directory;
 import tp1.api.service.java.Result;
 import tp1.api.service.soap.SoapDirectory;
-import tp1.impl.servers.common.JavaDirectoryState;
-import tp1.impl.servers.common.replication.Version;
 import util.Url;
 
 import javax.xml.namespace.QName;
@@ -59,12 +58,12 @@ public class SoapDirectoryClient extends SoapClient<SoapDirectory> implements Di
     }
 
     @Override
-    public Result<Version> getVersion(String token) {
+    public Result<String> getVersion(String token) {
         return super.toJavaResult(() -> impl.getVersion(token));
     }
 
     @Override
-    public Result<Void> applyDelta(JavaDirectoryState.FileDelta delta, String token) {
-        return super.toJavaResult(() -> impl.applyDelta(delta, token));
+    public Result<Void> applyDelta(String version, String token, FileDelta delta) {
+        return super.toJavaResult(() -> impl.applyDelta(version, delta, token));
     }
 }
