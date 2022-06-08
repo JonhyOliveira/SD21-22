@@ -259,7 +259,7 @@ public class JavaDirectory implements Directory, RecordProcessor {
     }
 
     @Override
-    public Result<Void> applyDelta(String version, String token, FileDelta delta) {
+    public Result<String> applyDelta(String version, String token, FileDelta delta) {
         return error(NOT_IMPLEMENTED);
     }
 

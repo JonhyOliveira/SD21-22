@@ -57,7 +57,7 @@ public class RetryDirectoryClient extends RetryClient implements Directory {
     }
 
     @Override
-    public Result<Void> applyDelta(String version, String token, FileDelta delta) {
+    public Result<String> applyDelta(String version, String token, FileDelta delta) {
         return super.reTry(() -> impl.applyDelta(version, token, delta));
     }
 

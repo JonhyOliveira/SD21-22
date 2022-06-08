@@ -1,5 +1,8 @@
 package tp1.impl.servers.common.replication;
 
+import tp1.impl.clients.Clients;
+import util.Token;
+
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -7,13 +10,15 @@ public class ReplicationManager {
 
     private static final String ELECTION_NAME = "directories";
     private static final Long DEFAULT_WAIT_TIME = 1000L;
+    private static final Long MAX_WAIT = 10L;
 
-    private final AtomicReference<Version> version = new AtomicReference<>(null);
+    private final AtomicReference<Version> version;
 
     public final LeaderElection election;
 
-    public ReplicationManager(String identifier) {
-        election = new LeaderElection(identifier, ELECTION_NAME);
+    public ReplicationManager(String identifier, LeaderElection.Config electionConfig) {
+        election = new LeaderElection(identifier, ELECTION_NAME, electionConfig);
+        version = new AtomicReference<>(Version.ZERO_VERSION);
     }
 
     public Version version() {
@@ -45,13 +50,28 @@ public class ReplicationManager {
     }
 
     public void waitForVersion(Version n, Long waitTime) {
-        synchronized (this) {
-            while (version().compareTo(n) < 0) {
-                try {
-                    this.wait(waitTime);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
+        if (version().compareTo(n) < 0) {
+            long startTime = System.currentTimeMillis();
+            synchronized (this) {
+                while (version().compareTo(n) < 0 && System.currentTimeMillis() - startTime < MAX_WAIT * 1000) {
+                    try {
+                        System.err.println("Waiting for version %s, currently on version %s".formatted(n, version()));
+                        this.wait(waitTime);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
                 }
+            }
+            System.err.println("Done waiting");
+        }
+    }
+
+    public void waitToBeLeader() {
+        while (!amLeader()) {
+            try {
+                Thread.sleep(DEFAULT_WAIT_TIME);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
             }
         }
     }
@@ -59,6 +79,7 @@ public class ReplicationManager {
     public void setVersion(Version n) {
         synchronized (this) {
             this.version.set(n);
+
             this.notifyAll();
         }
     }

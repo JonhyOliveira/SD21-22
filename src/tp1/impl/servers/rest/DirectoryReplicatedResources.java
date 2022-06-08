@@ -20,10 +20,11 @@ public class DirectoryReplicatedResources extends DirectoryResources implements 
     final ReplicationManager replicationManager;
 
 
-    public DirectoryReplicatedResources(ReplicationManager replicationManager) {
+    public DirectoryReplicatedResources(String serviceURI) {
         super();
-        this.impl = new JavaDirectorySynchronizer(replicationManager);
-        this.replicationManager = replicationManager;
+        var i = new JavaDirectorySynchronizer(serviceURI);
+        this.impl = i;
+        this.replicationManager = i.replicationManager();
     }
 
     @Override
@@ -71,7 +72,6 @@ public class DirectoryReplicatedResources extends DirectoryResources implements 
     @Override
     public String getVersion(String token) {
         Log.info(String.format("REST getVersion: token = %s\n", token));
-
         return super.resultOrThrow(impl.getVersion(token));
     }
 

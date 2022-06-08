@@ -9,8 +9,6 @@ import tp1.api.FileInfo;
 import tp1.api.service.java.Directory;
 import tp1.api.service.java.Result;
 import tp1.api.service.rest.RestDirectory;
-import tp1.impl.servers.common.replication.Version;
-import util.Json;
 
 import java.net.URI;
 import java.util.List;
@@ -114,13 +112,17 @@ public class RestDirectoryClient extends RestClient implements Directory {
     }
 
     @Override
-    public Result<Void> applyDelta(String version, String token, FileDelta delta) {
+    public Result<String> applyDelta(String version, String token, FileDelta delta) {
         Response r = target
                 .queryParam(RestDirectory.TOKEN, token)
                 .request()
                 .header(RestDirectory.VERSION_HEADER, version)
                 .post(Entity.entity(delta, MediaType.APPLICATION_JSON));
 
-        return super.toJavaResult(r);
+        var res = super.toJavaResult(r);
+        if (!res.isOK())
+            return Result.error(res.error(), res.errorValue());
+        else
+            return Result.ok(r.getHeaderString(RestDirectory.VERSION_HEADER));
     }
 }

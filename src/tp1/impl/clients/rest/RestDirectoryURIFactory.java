@@ -23,6 +23,7 @@ public class RestDirectoryURIFactory {
 
     public URI forWriteFile(String filename, byte[] data, String userId, String password) {
         return UriBuilder.fromUri(this.serviceURI)
+                .path(RestDirectory.PATH)
                 .path(userId)
                 .path(filename)
                 .queryParam(RestDirectory.PASSWORD, password)
@@ -31,6 +32,7 @@ public class RestDirectoryURIFactory {
 
     public URI forDeleteFile(String filename, String userId, String password) {
         return UriBuilder.fromUri(this.serviceURI)
+                .path(RestDirectory.PATH)
                 .path(userId)
                 .path(filename)
                 .queryParam(RestDirectory.PASSWORD, password)
@@ -39,6 +41,7 @@ public class RestDirectoryURIFactory {
 
     public URI forShareFile(String filename, String userId, String userIdShare, String password) {
         return UriBuilder.fromUri(this.serviceURI)
+                .path(RestDirectory.PATH)
                 .path(userId)
                 .path(filename)
                 .path(SHARE)
@@ -49,6 +52,7 @@ public class RestDirectoryURIFactory {
 
     public URI forUnShareFile(String filename, String userId, String userIdShare, String password) {
         return UriBuilder.fromUri(this.serviceURI)
+                .path(RestDirectory.PATH)
                 .path(userId)
                 .path(filename)
                 .path(SHARE)
@@ -59,6 +63,7 @@ public class RestDirectoryURIFactory {
 
     public URI forGetFile(String filename, String userId, String accUserId, String password) {
         return UriBuilder.fromUri(this.serviceURI)
+                .path(RestDirectory.PATH)
                 .path(userId)
                 .path(filename)
                 .queryParam(RestDirectory.ACC_USER_ID, accUserId)
@@ -68,6 +73,7 @@ public class RestDirectoryURIFactory {
 
     public URI forLsFile(String userId, String password) {
         return UriBuilder.fromUri(this.serviceURI)
+                .path(RestDirectory.PATH)
                 .path(userId)
                 .queryParam(RestDirectory.PASSWORD, password)
                 .build();
@@ -75,6 +81,7 @@ public class RestDirectoryURIFactory {
 
     public URI forDeleteUserFiles(String userId, String password, String token) {
         return UriBuilder.fromUri(this.serviceURI)
+                .path(RestDirectory.PATH)
                 .path(userId)
                 .queryParam(RestDirectory.PASSWORD, password)
                 .queryParam(RestDirectory.TOKEN, token)
@@ -83,12 +90,14 @@ public class RestDirectoryURIFactory {
 
     public URI forGetVersion(String token) {
         return UriBuilder.fromUri(this.serviceURI)
+                .path(RestDirectory.PATH)
                 .queryParam(RestDirectory.TOKEN, token)
                 .build();
     }
 
     public URI forSendDelta(FileDelta delta, String token) {
         return UriBuilder.fromUri(this.serviceURI)
+                .path(RestDirectory.PATH)
                 .queryParam(RestDirectory.TOKEN, token)
                 .build();
     }

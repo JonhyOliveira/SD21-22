@@ -59,11 +59,11 @@ public class SoapDirectoryClient extends SoapClient<SoapDirectory> implements Di
 
     @Override
     public Result<String> getVersion(String token) {
-        return super.toJavaResult(() -> impl.getVersion(token));
+        return super.toJavaResult(() -> impl.getVersion("", token));
     }
 
     @Override
-    public Result<Void> applyDelta(String version, String token, FileDelta delta) {
+    public Result<String> applyDelta(String version, String token, FileDelta delta) {
         return super.toJavaResult(() -> impl.applyDelta(version, delta, token));
     }
 }

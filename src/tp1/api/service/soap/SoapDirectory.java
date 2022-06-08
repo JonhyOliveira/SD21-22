@@ -37,7 +37,7 @@ public interface SoapDirectory {
     void deleteUserFiles(String userId, String password, String token) throws DirectoryException;
 
     @WebMethod
-    String getVersion(String token) throws NotSupportedException;
+    String getVersion(String version, String token) throws NotSupportedException;
 
     @WebMethod
     void applyDelta(String version, FileDelta delta, String token) throws NotSupportedException;

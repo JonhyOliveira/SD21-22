@@ -24,6 +24,7 @@ public record VersionFilter(ReplicationManager manager) implements ContainerResp
     public void filter(ContainerRequestContext containerRequestContext, ContainerResponseContext containerResponseContext) throws IOException {
         Log.info("Next version should be >= %s".formatted(manager.version().toString()));
         containerResponseContext.getHeaders().add(RestDirectory.VERSION_HEADER, Json.getInstance().toJson(manager.version()));
+        // System.err.printf("%s %s", containerRequestContext.getUriInfo().getAbsolutePath(), containerResponseContext.getStatus());
     }
 
     @Override

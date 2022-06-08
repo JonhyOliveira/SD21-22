@@ -90,7 +90,7 @@ public class SoapDirectoryWebService extends SoapWebService implements SoapDirec
     }
 
     @Override
-    public String getVersion(String token) throws NotSupportedException {
+    public String getVersion(String version, String token) throws NotSupportedException {
         Log.info(
                 String.format("SOAP getVersion: token = %s\n", token));
 

@@ -25,5 +25,5 @@ public interface Directory {
 
     Result<String> getVersion(String token);
 
-    Result<Void> applyDelta(String version, String token, FileDelta delta);
+    Result<String> applyDelta(String version, String token, FileDelta delta);
 }

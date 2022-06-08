@@ -26,12 +26,11 @@ public class DirectoryReplicatedRestServer extends AbstractRestServer {
 
     @Override
     public void registerResources(ResourceConfig config, String serviceURI) {
-        ReplicationManager replicationManager = new ReplicationManager(serviceURI);
-        replicationManager.setVersion(Version.ZERO_VERSION);
+        var res = new DirectoryReplicatedResources(serviceURI);
 
-        config.register(new DirectoryReplicatedResources(replicationManager));
+        config.register(res);
         config.register(GenericExceptionMapper.class);
-		config.register(new VersionFilter(replicationManager));
+		config.register(new VersionFilter(res.replicationManager));
 //		config.register( CustomLoggingFilter.class);
     }
 

@@ -71,11 +71,8 @@ public class Discovery {
     /**
      * Listens for the given composite service name, blocks until a minimum number of replies is collected.
      *
-     * @param serviceName      - the composite name of the service
-     * @param minRepliesNeeded - the minimum number of replies required.
      * @return the discovery results as an array
      */
-
     public void listener() {
         Log.info(String.format("Starting discovery on multicast group: %s, port: %d\n", DISCOVERY_ADDR.getAddress(), DISCOVERY_ADDR.getPort()));
 
@@ -113,8 +110,6 @@ public class Discovery {
         }
     }
 
-    private static final int URI_VALIDITY = 10; // seconds
-
     public List<URI> findUrisOf(String serviceName, int minRepliesNeeded) {
         Log.info(String.format("Discovery.findUrisOf( serviceName: %s, minRequired: %d\n", serviceName, minRepliesNeeded));
 
@@ -122,7 +117,7 @@ public class Discovery {
             var results = discoveries.get(serviceName);
             if (results != null && results.size() >= minRepliesNeeded)
                 return results.stream()
-                        .filter(uriEntry -> new Date().before(Date.from(uriEntry.lastRecorded().plus(URI_VALIDITY, ChronoUnit.SECONDS))))
+                        .filter(uriEntry -> new Date().before(Date.from(uriEntry.lastRecorded().plus(DISCOVERY_TIMEOUT, ChronoUnit.MILLIS))))
                         .map(URIEntry::uri).toList();
             else
                 Sleep.ms(DISCOVERY_PERIOD);

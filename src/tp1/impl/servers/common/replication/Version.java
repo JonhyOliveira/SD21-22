@@ -6,14 +6,14 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * Versioning format used for replication
+ * Versioning format used for replication and operation serialization
  */
 public class Version implements Comparable<Version> {
 
     /**
      * Will be lower than any other version
      */
-    public static final Version ZERO_VERSION = new Version(Long.MIN_VALUE, ""); // charAt = 0
+    public static final Version ZERO_VERSION = new Version(0L, ""); // charAt = 0
 
     /**
      * Will be larger than any other version, make sure the first character of your
@@ -66,10 +66,10 @@ public class Version implements Comparable<Version> {
     }
 
     /**
-     * Generates a successor to this version
+     * Generates a direct successor to this version
      *
      * @param replicaID the replica to generate a successor for
-     * @return the successor version
+     * @return a successor version
      */
     public synchronized Version next(String replicaID) {
         v.incrementAndGet();
@@ -78,12 +78,35 @@ public class Version implements Comparable<Version> {
     }
 
     /**
-     * Generates a successor to this version for the currently associated replica
+     * Generates a direct successor to this version for the currently associated replica
      *
-     * @return the successor replica
+     * @return a successor version
      */
     public Version next() {
         return this.next(this.replicaID.get());
+    }
+
+    public Version nextCopy(String replicaID) {
+        return this.copy().next(replicaID);
+    }
+
+    /**
+     * Generates a copy of a direct successor of this version the currently associated
+     *
+     * @return
+     */
+    public Version nextCopy() {
+        return this.nextCopy(this.replicaID.get());
+    }
+
+    /**
+     * Generates a directly previous version to this version (version number - 1)
+     * (only for comparative purposes)
+     *
+     * @return a previous version
+     */
+    public synchronized Version previous() {
+        return new Version(v.get()-1, "");
     }
 
     public void setVersion(Version o) {

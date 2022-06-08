@@ -144,6 +144,12 @@ public interface RestDirectory {
     @Produces(MediaType.APPLICATION_JSON)
     String getVersion(@QueryParam(TOKEN) String token);
 
+    /**
+     *
+     * @param version
+     * @param token
+     * @param delta
+     */
     @POST
     @Consumes(MediaType.APPLICATION_JSON)
     void applyDelta(@HeaderParam(VERSION_HEADER) String version, @QueryParam(TOKEN) String token, FileDelta delta);

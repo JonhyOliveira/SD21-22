@@ -14,7 +14,7 @@ public class Zookeeper implements Watcher {
     public static Zookeeper getInstance() {
         if (instance == null) {
             try {
-                instance = new Zookeeper("kafka:");
+                instance = new Zookeeper("kafka");
                 System.out.println("Zookeeper initialized.");
             } catch (IOException | InterruptedException e) {
                 System.err.println("Failed to initialize zookeeper");
@@ -60,13 +60,11 @@ public class Zookeeper implements Watcher {
         }
     }
 
-    public List<String> getChildren(String path) throws KeeperException {
+    public List<String> getChildren(String path) {
         try {
             return client().getChildren(path, false);
-        } catch (KeeperException e) {
-            throw e;
-        } catch (Exception x) {
-            x.printStackTrace();
+        } catch (Exception e) {
+            e.printStackTrace();
         }
         return Collections.emptyList();
     }
@@ -99,11 +97,7 @@ public class Zookeeper implements Watcher {
         }
 
         zk.getChildren(root, (e) -> {
-            try {
-                zk.getChildren(root).forEach(System.out::println);
-            } catch (KeeperException ex) {
-                ex.printStackTrace();
-            }
+            zk.getChildren(root).forEach(System.out::println);
         });
 
         Thread.sleep(Integer.MAX_VALUE);

@@ -18,8 +18,8 @@ import java.util.logging.Logger;
 public abstract class RetryClient {
     private static final Logger Log = Logger.getLogger(RetryClient.class.getName());
 
-    protected static final int READ_TIMEOUT = 10000;
-    protected static final int CONNECT_TIMEOUT = 10000;
+    protected static final int READ_TIMEOUT = 2000;
+    protected static final int CONNECT_TIMEOUT = 5000;
 
     protected static final int RETRY_SLEEP = 100;
     protected static final int MAX_RETRIES = 3;

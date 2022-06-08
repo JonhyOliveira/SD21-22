@@ -15,6 +15,8 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Consumer;
+import java.util.function.Supplier;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -50,14 +52,14 @@ public class JavaDirectoryState {
     final Map<String, UserFiles> userFiles = new ConcurrentHashMap<>();
     final Map<URI, FileCounts> fileCounts = new ConcurrentHashMap<>();
 
-    public Result<FileDelta> writeFile(String filename, String userId, String password) {
+    public Pair<Result<FileDelta>, Supplier<FileDelta>> writeFile(String filename, String userId, String password, byte[] data) {
 
         if (badParam(filename) || badParam(userId))
-            return error(BAD_REQUEST);
+            return new Pair<>(error(BAD_REQUEST));
 
         var user = getUser(userId, password);
         if (!user.isOK())
-            return error(user.error());
+            return new Pair<>(error(user.error()));
 
         var uf = userFiles.computeIfAbsent(userId, (k) -> new UserFiles());
         synchronized (uf) {
@@ -74,12 +76,34 @@ public class JavaDirectoryState {
             var addedURIs = newURIs.stream().filter(uri -> !oldURIs.contains(uri)).collect(Collectors.toSet());
             var removedURIs = oldURIs.stream().filter(uri -> !newURIs.contains(uri)).collect(Collectors.toSet());
 
+            Supplier<FileDelta> effect = () -> {
+                var failedURIs = new HashSet<String>();
+
+                newURIs.forEach(u -> {
+                    Log.info("Writing %s @ %s. data.length = %s".formatted(fileId, u, data.length));
+                    var res = FilesClients.get(URI.create(u)).writeFile(fileId, data, Token.get());
+                    if (!res.isOK()) {
+                        Log.warning("Failed at writing file to url %s. Status code: %s\nReason: %s"
+                                .formatted(u, res.error(), res.errorValue()));
+                        failedURIs.add(u);
+                    }
+                    Log.info("Done write %s @ %s. data.length = %s".formatted(fileId, u, data.length));
+                });
+
+                // TODO notify file servers
+
+                if (failedURIs.isEmpty())
+                    return null;
+                else
+                    return new FileDelta(userId, filename, false, null, failedURIs, null, null);
+            };
+
             if (addedURIs.size() > 0 || removedURIs.size() > 0)
-                return ok(new FileDelta(userId, filename, false, addedURIs, removedURIs, null, null));
+                return new Pair<>(ok(new FileDelta(userId, filename, false, addedURIs, removedURIs, null, null)), effect);
             else if (newURIs.size() > 0)
-                return ok();
+                return new Pair<>(ok(), effect);
             else
-                return error(BAD_REQUEST); // no servers available
+                return new Pair<>(error(BAD_REQUEST)); // no servers available
         }
 
     }
@@ -94,6 +118,8 @@ public class JavaDirectoryState {
      */
     public synchronized FileDelta applyDelta(FileDelta delta, boolean leader, byte[] data) {
         Log.info("Applying delta: %s".formatted(delta));
+        if (delta == null)
+            return null;
 
         var uf = userFiles.computeIfAbsent(delta.getUserId(), (k) -> new UserFiles());
         var fileId = fileId(delta.getFilename(), delta.getUserId());
@@ -110,8 +136,6 @@ public class JavaDirectoryState {
 
             // set file counts
             info.uris().forEach(u -> getFileCounts(URI.create(u), false).numFiles().decrementAndGet());
-
-            /* if (leader) TODO garbage collect (tell files servers that file was deleted) */
 
         }
         else {
@@ -133,22 +157,12 @@ public class JavaDirectoryState {
             delta.getAddedURIs().forEach(u -> {
                 if (file.uris.add(u))
                     getFileCounts(URI.create(u), true).numFiles().incrementAndGet();
-                if (leader) {
-                    var res = FilesClients.get(URI.create(u)).writeFile(fileId, data, Token.get());
-                    if (!res.isOK()) {
-                        Log.warning("Failed at writing file to url %s. Status code: %s\nReason: %s"
-                                .formatted(u, res.error(), res.errorValue()));
-                        failedAdds.add(u);
-                    }
-                }
             });
             delta.getRemovedURIs().forEach(u -> {
                 if (file.uris.remove(u)) {
                     getFileCounts(URI.create(u), false).numFiles().decrementAndGet();
                 }
             });
-            /* if (!delta.removedURIs().isEmpty() && leader) TODO garbage collect (tell files server new URI list) */
-
 
             // add shares
             delta.getAddedShares().forEach(s -> {
@@ -201,21 +215,23 @@ public class JavaDirectoryState {
      * @param password the password of the owner of the file
      * @return a pair that signifies the new state of the file
      */
-    public Result<FileDelta> deleteFile(String filename, String userId, String password) {
+    public Pair<Result<FileDelta>, Runnable> deleteFile(String filename, String userId, String password) {
         if (badParam(filename) || badParam(userId))
-            return error(BAD_REQUEST);
+            return new Pair<>(error(BAD_REQUEST));
 
         var fileId = fileId(filename, userId);
 
         var file = files.get(fileId);
         if (file == null)
-            return error(NOT_FOUND);
+            return new Pair<>(error(NOT_FOUND));
 
         var user = getUser(userId, password);
         if (!user.isOK())
-            return error(user.error());
+            return new Pair<>(error(user.error()));
 
-        return ok(new FileDelta(userId, filename, true, null, null, null, null));
+        return new Pair<>(ok(new FileDelta(userId, filename)), () -> {
+            // TODO notify file servers (GC)
+        });
     }
 
     public Result<FileDelta> shareFile(String filename, String userId, String userIdShare, String password) {
@@ -225,7 +241,7 @@ public class JavaDirectoryState {
         var fileId = fileId(filename, userId);
 
         var file = files.get(fileId);
-        if (file == null || getUser(userIdShare, "").error() == NOT_FOUND)
+        if (file == null || getUser(userIdShare, password).error() == NOT_FOUND)
             return error(NOT_FOUND);
 
         var user = getUser(userId, password);
@@ -423,6 +439,12 @@ public class JavaDirectoryState {
     }
 
     static record UserInfo(String userId, String password) {
+    }
+
+    record Pair<V1,V2>(V1 v1, V2 v2) {
+        public Pair(V1 value) {
+            this(value, null);
+        }
     }
 
 }
